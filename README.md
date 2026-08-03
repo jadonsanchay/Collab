@@ -1,6 +1,6 @@
-# Inko — Real-time Collaborative Whiteboard
+# Collab — Real-time Collaborative Whiteboard
 
-Inko (internal package name `board_t`, product name "Collab") is a real-time collaborative whiteboard. Anyone can create a room, share the room ID, and draw together live — with synced strokes/shapes/images, live cursors, per-user undo/redo, and in-room chat.
+Collab (internal package name `board_t`) is a real-time collaborative whiteboard. Anyone can create a room, share the room ID, and draw together live — with synced strokes/shapes/images, live cursors, per-user undo/redo, and in-room chat.
 
 Live at: [collab-x6r1.onrender.com](https://collab-x6r1.onrender.com/)
 
@@ -20,7 +20,7 @@ For deeper implementation notes (module layout, conventions, gotchas), see [CLAU
 
 ## Architecture
 
-Inko does **not** use Next.js's own dev/prod server. `server/index.ts` is a custom Express server that wraps Next.js's request handler and hosts a Socket.IO server on the same HTTP server instance. All real-time behavior (rooms, drawing, chat, cursors) goes through Socket.IO; Next.js only serves pages/assets.
+Collab does **not** use Next.js's own dev/prod server. `server/index.ts` is a custom Express server that wraps Next.js's request handler and hosts a Socket.IO server on the same HTTP server instance. All real-time behavior (rooms, drawing, chat, cursors) goes through Socket.IO; Next.js only serves pages/assets.
 
 ```
 ┌─────────────────────────────┐        ┌──────────────────────────────┐
@@ -91,7 +91,7 @@ There is no `.env` requirement beyond these — no database or third-party API k
 
 Currently deployed on [Render](https://render.com) as a web service named "collab": [collab-x6r1.onrender.com](https://collab-x6r1.onrender.com/).
 
-Because Inko runs a **custom, long-lived Node server** (Express + Socket.IO) rather than Next.js's own server or serverless functions, it needs a host that runs a persistent Node process with WebSocket support — e.g. Render, Railway, Fly.io, or a VM/container platform. It is **not** a good fit for Vercel's default serverless deployment model, since that doesn't support a custom long-running server process or persistent Socket.IO connections.
+Because Collab runs a **custom, long-lived Node server** (Express + Socket.IO) rather than Next.js's own server or serverless functions, it needs a host that runs a persistent Node process with WebSocket support — e.g. Render, Railway, Fly.io, or a VM/container platform. It is **not** a good fit for Vercel's default serverless deployment model, since that doesn't support a custom long-running server process or persistent Socket.IO connections.
 
 To deploy anywhere that runs a Node process:
 

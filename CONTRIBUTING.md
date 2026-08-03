@@ -1,4 +1,4 @@
-# Contributing to Inko
+# Contributing to Collab
 
 ## Setup
 

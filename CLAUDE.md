@@ -1,6 +1,6 @@
-# Inko — Real-time Collaborative Whiteboard
+# Collab — Real-time Collaborative Whiteboard
 
-Next.js + Express + Socket.IO app (package name internally is `board_t`, product name "Collab"). Users create/join a room and draw together on a shared canvas in real time, with live cursors, chat, and an undo/redo history per user.
+Next.js + Express + Socket.IO app (package name internally is `board_t`). Users create/join a room and draw together on a shared canvas in real time, with live cursors, chat, and an undo/redo history per user.
 
 ## Architecture
 
