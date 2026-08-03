@@ -37,11 +37,11 @@ Room/drawing state lives **only in server memory** (a `Map<roomId, Room>`) — t
 
 ### Data model
 
-| Type | Where | What it represents |
-|---|---|---|
-| `Move` | `common/types/global.d.ts` | One drawing operation: shape type, path points, circle/rect params, line/fill color + width, optional base64 image, server-assigned `timestamp` and `id`. Every stroke, shape, or pasted image the user commits becomes one `Move`. |
+| Type                 | Where                      | What it represents                                                                                                                                                                                                                                                        |
+| -------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Move`               | `common/types/global.d.ts` | One drawing operation: shape type, path points, circle/rect params, line/fill color + width, optional base64 image, server-assigned `timestamp` and `id`. Every stroke, shape, or pasted image the user commits becomes one `Move`.                                       |
 | `Room` (server-side) | `common/types/global.d.ts` | `{ usersMoves: Map<socketId, Move[]>, drawed: Move[], users: Map<socketId, username> }`. `usersMoves` holds each connected user's own move history (for per-user undo). `drawed` holds moves from users who have since left — kept so their drawing persists in the room. |
-| `ClientRoom` | `common/types/global.d.ts` | The client's local mirror of room state: `usersMoves` (other users' moves, keyed by socket id), `movesWithoutUser` (from `Room.drawed`), `myMoves` (the local user's own moves, enabling instant local undo/redo), and `users` (id → `{ name, color }`). |
+| `ClientRoom`         | `common/types/global.d.ts` | The client's local mirror of room state: `usersMoves` (other users' moves, keyed by socket id), `movesWithoutUser` (from `Room.drawed`), `myMoves` (the local user's own moves, enabling instant local undo/redo), and `users` (id → `{ name, color }`).                  |
 
 The client reconstructs the board by merging `movesWithoutUser + myMoves + everyone else's usersMoves`, sorting by `timestamp`, and replaying each `Move` onto the `<canvas>` (see `useMovesHandlers` in `modules/room/hooks/`). New moves are drawn incrementally on top rather than triggering a full replay where possible. This works without a CRDT/OT layer because drawing operations are additive/commutative — unlike collaborative text editing, two people's strokes never need to be merged or transformed against each other.
 
@@ -68,24 +68,24 @@ This starts the custom server (`server/index.ts` via nodemon/ts-node) on `http:/
 
 ### Environment variables
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `PORT` | `3000` | Port the Express/Socket.IO/Next.js server listens on |
-| `NODE_ENV` | — | Set to `production` for `npm start` to run the compiled server; anything else runs Next.js in dev mode |
+| Variable   | Default | Purpose                                                                                                |
+| ---------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `PORT`     | `3000`  | Port the Express/Socket.IO/Next.js server listens on                                                   |
+| `NODE_ENV` | —       | Set to `production` for `npm start` to run the compiled server; anything else runs Next.js in dev mode |
 
 There is no `.env` requirement beyond these — no database or third-party API keys are used.
 
 ## Scripts
 
-| Script | What it does |
-|---|---|
-| `npm run dev` | Runs `server/index.ts` directly via `nodemon` (auto-restarts on server changes; Next.js's own fast-refresh still applies to pages) |
-| `npm run dev:client` | Runs `server/index.ts` once via `ts-node` (no watch) |
-| `npm run build:server` | Compiles `server/` to `build/` via `tsc --project tsconfig.server.json` |
-| `npm run build:next` | Runs `next build` |
-| `npm run build` | Runs both of the above, in order — required before `npm start` |
-| `npm start` | `NODE_ENV=production node build/index.js` — serves the compiled server + built Next.js app |
-| `npm run lint` | `next lint` |
+| Script                 | What it does                                                                                                                       |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`          | Runs `server/index.ts` directly via `nodemon` (auto-restarts on server changes; Next.js's own fast-refresh still applies to pages) |
+| `npm run dev:client`   | Runs `server/index.ts` once via `ts-node` (no watch)                                                                               |
+| `npm run build:server` | Compiles `server/` to `build/` via `tsc --project tsconfig.server.json`                                                            |
+| `npm run build:next`   | Runs `next build`                                                                                                                  |
+| `npm run build`        | Runs both of the above, in order — required before `npm start`                                                                     |
+| `npm start`            | `NODE_ENV=production node build/index.js` — serves the compiled server + built Next.js app                                         |
+| `npm run lint`         | `next lint`                                                                                                                        |
 
 ## Deployment
 

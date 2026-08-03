@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
@@ -38,7 +38,7 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
     return moves;
   }, [room]);
 
-  const copyCanvasToSmall = () => {
+  const copyCanvasToSmall = useCallback(() => {
     if (canvasRef.current && minimapRef.current && bgRef.current) {
       const smallCtx = minimapRef.current.getContext('2d');
       if (smallCtx) {
@@ -48,21 +48,21 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
           0,
           0,
           smallCtx.canvas.width,
-          smallCtx.canvas.height
+          smallCtx.canvas.height,
         );
         smallCtx.drawImage(
           canvasRef.current,
           0,
           0,
           smallCtx.canvas.width,
-          smallCtx.canvas.height
+          smallCtx.canvas.height,
         );
       }
     }
-  };
+    // Refs are stable across renders, so this never needs to be recreated.
+  }, [canvasRef, minimapRef, bgRef]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => copyCanvasToSmall(), [bg]);
+  useEffect(() => copyCanvasToSmall(), [bg, copyCanvasToSmall]);
 
   const drawMove = (move: Move, image?: HTMLImageElement) => {
     const { path } = move;
@@ -134,14 +134,15 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
     const images = await Promise.all(
       sortedMoves
         .filter((move) => move.options.shape === 'image')
-        .map((move) => {
-          return new Promise<HTMLImageElement>((resolve) => {
-            const img = new Image();
-            img.src = move.img.base64;
-            img.id = move.id;
-            img.addEventListener('load', () => resolve(img));
-          });
-        })
+        .map(
+          (move) =>
+            new Promise<HTMLImageElement>((resolve) => {
+              const img = new Image();
+              img.src = move.img.base64;
+              img.id = move.id;
+              img.addEventListener('load', () => resolve(img));
+            }),
+        ),
     );
 
     sortedMoves.forEach((move) => {
@@ -185,11 +186,14 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
       prevMovesLength = sortedMoves.length;
     };
 
+    // Intentionally scoped to `sortedMoves` only: this compares the new move count against
+    // `prevMovesLength` to decide full-redraw vs. incremental-draw. drawAllMoves/drawMove are
+    // recreated every render (they close over ctx), so including them would redraw on every
+    // unrelated render, not just when new moves arrive.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortedMoves]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (ctx) {
       const move = handleRemoveMyMove();
 
@@ -199,10 +203,9 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
         socket.emit('undo');
       }
     }
-  };
+  }, [ctx, handleRemoveMyMove, clearSelection, addSavedMove]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (ctx) {
       const move = removeSavedMove();
 
@@ -210,7 +213,7 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
         socket.emit('draw', move);
       }
     }
-  };
+  }, [ctx, removeSavedMove]);
 
   useEffect(() => {
     const handleUndoRedoKeyboard = (e: KeyboardEvent) => {

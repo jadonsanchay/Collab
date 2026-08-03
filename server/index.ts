@@ -108,7 +108,7 @@ nextApp.prepare().then(async () => {
         'room',
         room,
         JSON.stringify([...room.usersMoves]),
-        JSON.stringify([...room.users])
+        JSON.stringify([...room.users]),
       );
 
       socket.broadcast
@@ -125,15 +125,12 @@ nextApp.prepare().then(async () => {
 
     socket.on('draw', (move) => {
       const roomId = getRoomId();
-      const timestamp = Date.now();
+      const finalizedMove = { ...move, id: v4(), timestamp: Date.now() };
 
-      move.id = v4(); // Add unique ID to move
-      addMove(roomId, socket.id, { ...move, timestamp });
+      addMove(roomId, socket.id, finalizedMove);
 
-      io.to(socket.id).emit('your_move', { ...move, timestamp });
-      socket.broadcast
-        .to(roomId)
-        .emit('user_draw', { ...move, timestamp }, socket.id);
+      io.to(socket.id).emit('your_move', finalizedMove);
+      socket.broadcast.to(roomId).emit('user_draw', finalizedMove, socket.id);
     });
 
     socket.on('undo', () => {

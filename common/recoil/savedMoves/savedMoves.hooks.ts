@@ -2,7 +2,7 @@ import { useRecoilValue, useSetRecoilState } from 'recoil';
 
 import { Move } from '@/common/types/global';
 
-import { savedMovesAtom } from './savedMoves.atom'
+import { savedMovesAtom } from './savedMoves.atom';
 
 export const useSetSavedMoves = () => {
   const setSavedMoves = useSetRecoilState(savedMovesAtom);

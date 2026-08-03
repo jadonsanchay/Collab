@@ -15,7 +15,7 @@ const BackgroundModal = () => {
   const renderBg = (
     ref: HTMLCanvasElement | null,
     mode: 'dark' | 'light',
-    lines: boolean
+    lines: boolean,
   ) => {
     const ctx = ref?.getContext('2d');
     if (ctx) {
@@ -44,7 +44,11 @@ const BackgroundModal = () => {
 
   return (
     <div className="relative flex flex-col items-center rounded-md bg-white p-10">
-      <button onClick={closeModal} className="absolute top-5 right-5">
+      <button
+        type="button"
+        onClick={closeModal}
+        className="absolute right-5 top-5"
+      >
         <AiOutlineClose />
       </button>
       <h2 className="mb-4 text-2xl font-bold">Choose background</h2>

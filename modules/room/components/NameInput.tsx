@@ -17,7 +17,7 @@ const NameInput = () => {
   const roomId = (router.query.roomId || '').toString();
 
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId) return undefined;
 
     socket.emit('check_room', roomId);
 
@@ -27,7 +27,6 @@ const NameInput = () => {
       }
     });
 
-    // eslint-disable-next-line consistent-return
     return () => {
       socket.off('room_exists');
     };
@@ -64,18 +63,18 @@ const NameInput = () => {
       </h1>
       <h3 className="text-xl sm:text-2xl">Real-time whiteboard</h3>
 
-      <div className="mt-10 mb-3 flex flex-col gap-2">
-        <label className="self-start font-bold leading-tight">
+      <label htmlFor="username" className="mb-3 mt-10 flex flex-col gap-2">
+        <span className="self-start font-bold leading-tight">
           Enter your name
-        </label>
+        </span>
         <input
           className="rounded-xl border p-5 py-1"
-          id="room-id"
+          id="username"
           placeholder="Username..."
           value={name}
           onChange={(e) => setName(e.target.value.slice(0, 15))}
         />
-      </div>
+      </label>
 
       <button className="btn" type="submit">
         Enter room

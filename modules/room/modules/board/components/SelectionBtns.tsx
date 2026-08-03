@@ -38,10 +38,11 @@ const SelectionBtns = () => {
 
   return (
     <div
-      className="absolute top-0 left-0 z-50 flex items-center justify-center gap-2"
+      className="absolute left-0 top-0 z-50 flex items-center justify-center gap-2"
       style={{ top, left }}
     >
       <button
+        type="button"
         className="rounded-full bg-gray-200 p-2"
         ref={(ref) => {
           if (ref && selectionRefs.current) selectionRefs.current[0] = ref;
@@ -50,6 +51,7 @@ const SelectionBtns = () => {
         <BsArrowsMove />
       </button>
       <button
+        type="button"
         className="rounded-full bg-gray-200 p-2"
         ref={(ref) => {
           if (ref && selectionRefs.current) selectionRefs.current[1] = ref;
@@ -58,6 +60,7 @@ const SelectionBtns = () => {
         <FiCopy />
       </button>
       <button
+        type="button"
         className="rounded-full bg-gray-200 p-2"
         ref={(ref) => {
           if (ref && selectionRefs.current) selectionRefs.current[2] = ref;

@@ -32,6 +32,7 @@ const ShapeSelector = () => {
   return (
     <div className="relative flex items-center" ref={ref}>
       <button
+        type="button"
         className="btn-icon text-2xl"
         disabled={options.mode === 'select'}
         onClick={() => setOpened((prev) => !prev)}
@@ -51,6 +52,7 @@ const ShapeSelector = () => {
             exit="from"
           >
             <button
+              type="button"
               className="btn-icon text-2xl"
               onClick={() => handleShapeChange('line')}
             >
@@ -58,6 +60,7 @@ const ShapeSelector = () => {
             </button>
 
             <button
+              type="button"
               className="btn-icon text-2xl"
               onClick={() => handleShapeChange('rect')}
             >
@@ -65,6 +68,7 @@ const ShapeSelector = () => {
             </button>
 
             <button
+              type="button"
               className="btn-icon text-2xl"
               onClick={() => handleShapeChange('circle')}
             >

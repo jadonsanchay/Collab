@@ -7,7 +7,11 @@ import { useBackground } from '@/common/recoil/background';
 
 import { useBoardPosition } from '../hooks/useBoardPosition';
 
-const Background = ({ bgRef }: { bgRef: RefObject<HTMLCanvasElement | null> }) => {
+const Background = ({
+  bgRef,
+}: {
+  bgRef: RefObject<HTMLCanvasElement | null>;
+}) => {
   const bg = useBackground();
   const { x, y } = useBoardPosition();
 

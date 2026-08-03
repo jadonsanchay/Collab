@@ -11,6 +11,6 @@ export const optimizeImage = (file: File, callback: (uri: string) => void) => {
     (uri) => {
       callback(uri.toString());
     },
-    'base64'
+    'base64',
   );
 };

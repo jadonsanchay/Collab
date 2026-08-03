@@ -20,6 +20,7 @@ const LineWidthPicker = () => {
   return (
     <div className="relative flex items-center" ref={ref}>
       <button
+        type="button"
         className="btn-icon text-xl"
         onClick={() => setOpened(!opened)}
         disabled={options.mode === 'select'}
@@ -29,7 +30,7 @@ const LineWidthPicker = () => {
       <AnimatePresence>
         {opened && (
           <motion.div
-            className="absolute top-[6px] left-14 w-36"
+            className="absolute left-14 top-[6px] w-36"
             variants={EntryAnimation}
             initial="from"
             animate="to"

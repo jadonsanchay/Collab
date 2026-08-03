@@ -12,13 +12,12 @@ const ModePicker = () => {
 
   useEffect(() => {
     clearSelection();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options.mode]);
+  }, [options.mode, clearSelection]);
 
   return (
     <>
       <button
+        type="button"
         className={`btn-icon text-xl ${
           options.mode === 'draw' && 'bg-green-400'
         }`}
@@ -33,6 +32,7 @@ const ModePicker = () => {
       </button>
 
       <button
+        type="button"
         className={`btn-icon text-xl ${
           options.mode === 'eraser' && 'bg-green-400'
         }`}
@@ -47,6 +47,7 @@ const ModePicker = () => {
       </button>
 
       <button
+        type="button"
         className={`btn-icon text-2xl ${
           options.mode === 'select' && 'bg-green-400'
         }`}

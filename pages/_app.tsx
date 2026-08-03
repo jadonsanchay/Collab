@@ -10,22 +10,20 @@ import { ModalManager } from '@/modules/modal';
 
 import 'react-toastify/dist/ReactToastify.css';
 
-const App = ({ Component, pageProps }: AppProps) => {
-  return (
-    <>
-      <Head>
-        <title>Collab | Online Whiteboard</title>
-        <link rel="icon" href="/favicon.ico" />
-      </Head>
-      <RecoilRoot>
-        <ToastContainer />
-        <MotionConfig transition={{ ease: DEFAULT_EASE }}>
-          <ModalManager />
-          <Component {...pageProps} />
-        </MotionConfig>
-      </RecoilRoot>
-    </>
-  );
-};
+const App = ({ Component, pageProps }: AppProps) => (
+  <>
+    <Head>
+      <title>Collab | Online Whiteboard</title>
+      <link rel="icon" href="/favicon.ico" />
+    </Head>
+    <RecoilRoot>
+      <ToastContainer />
+      <MotionConfig transition={{ ease: DEFAULT_EASE }}>
+        <ModalManager />
+        <Component {...pageProps} />
+      </MotionConfig>
+    </RecoilRoot>
+  </>
+);
 
 export default App;

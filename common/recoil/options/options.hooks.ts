@@ -1,3 +1,5 @@
+import { useCallback } from 'react';
+
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 
 import { optionsAtom } from './options.atom';
@@ -23,18 +25,16 @@ export const useOptions = () => {
 export const useSetSelection = () => {
   const setOptions = useSetOptions();
 
-  const setSelection = (rect: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }) => {
-    setOptions((prev) => ({ ...prev, selection: rect }));
-  };
+  const setSelection = useCallback(
+    (rect: { x: number; y: number; width: number; height: number }) => {
+      setOptions((prev) => ({ ...prev, selection: rect }));
+    },
+    [setOptions],
+  );
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setOptions((prev) => ({ ...prev, selection: null }));
-  };
+  }, [setOptions]);
 
   return { setSelection, clearSelection };
 };

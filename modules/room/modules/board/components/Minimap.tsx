@@ -24,14 +24,14 @@ const MiniMap = ({ dragging }: { dragging: boolean }) => {
       setX(boardPos.x.get());
       setY(boardPos.y.get());
     };
-    
+
     // Initial update
     updatePositionFromBoard();
-    
+
     // Subscribe to both x and y changes
-    const unsubscribeX = boardPos.x.on("change", updatePositionFromBoard);
-    const unsubscribeY = boardPos.y.on("change", updatePositionFromBoard);
-    
+    const unsubscribeX = boardPos.x.on('change', updatePositionFromBoard);
+    const unsubscribeY = boardPos.y.on('change', updatePositionFromBoard);
+
     // Clean up subscriptions
     return () => {
       unsubscribeX();
@@ -55,13 +55,13 @@ const MiniMap = ({ dragging }: { dragging: boolean }) => {
     const handleMiniXChange = (newX: number) => {
       if (!dragging) boardPos.x.set(Math.floor(-newX * divider));
     };
-    
+
     const handleMiniYChange = (newY: number) => {
       if (!dragging) boardPos.y.set(Math.floor(-newY * divider));
     };
-    
-    const unsubscribeX = miniX.on("change", handleMiniXChange);
-    const unsubscribeY = miniY.on("change", handleMiniYChange);
+
+    const unsubscribeX = miniX.on('change', handleMiniXChange);
+    const unsubscribeY = miniY.on('change', handleMiniYChange);
 
     return () => {
       unsubscribeX();
@@ -82,7 +82,7 @@ const MiniMap = ({ dragging }: { dragging: boolean }) => {
         ref={minimapRef}
         width={CANVAS_SIZE.width}
         height={CANVAS_SIZE.height}
-        className="h-full w-full"
+        className="size-full"
       />
       <motion.div
         drag
@@ -91,7 +91,7 @@ const MiniMap = ({ dragging }: { dragging: boolean }) => {
         dragTransition={{ power: 0, timeConstant: 0 }}
         onDragStart={() => setDraggingMinimap(true)}
         onDragEnd={() => setDraggingMinimap(false)}
-        className="absolute top-0 left-0 cursor-grab rounded-lg border-2 border-red-500"
+        className="absolute left-0 top-0 cursor-grab rounded-lg border-2 border-red-500"
         style={{
           width: width / divider,
           height: height / divider,

@@ -4,9 +4,9 @@ import { useRouter } from 'next/router';
 
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/recoil/room';
-import { useModal } from '@/modules/modal'
+import { useModal } from '@/modules/modal';
 
-import NotFoundModal from '../modals/NotFound'
+import NotFoundModal from '../modals/NotFound';
 
 const Home = () => {
   const { openModal } = useModal();
@@ -66,18 +66,18 @@ const Home = () => {
       </h1>
       <h3 className="text-xl sm:text-2xl">Real-time whiteboard</h3>
 
-      <div className="mt-10 flex flex-col gap-2">
-        <label className="self-start font-bold leading-tight">
+      <label htmlFor="username" className="mt-10 flex flex-col gap-2">
+        <span className="self-start font-bold leading-tight">
           Enter your name
-        </label>
+        </span>
         <input
           className="input"
-          id="room-id"
+          id="username"
           placeholder="Username..."
           value={username}
           onChange={(e) => setUsername(e.target.value.slice(0, 15))}
         />
-      </div>
+      </label>
 
       <div className="my-8 h-px w-96 bg-zinc-200" />
 
@@ -85,16 +85,18 @@ const Home = () => {
         className="flex flex-col items-center gap-3"
         onSubmit={handleJoinRoom}
       >
-        <label htmlFor="room-id" className="self-start font-bold leading-tight">
-          Enter room id
+        <label htmlFor="room-id" className="flex w-full flex-col gap-2">
+          <span className="self-start font-bold leading-tight">
+            Enter room id
+          </span>
+          <input
+            className="input"
+            id="room-id"
+            placeholder="Room id..."
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+          />
         </label>
-        <input
-          className="input"
-          id="room-id"
-          placeholder="Room id..."
-          value={roomId}
-          onChange={(e) => setRoomId(e.target.value)}
-        />
         <button className="btn" type="submit">
           Join
         </button>
@@ -109,7 +111,7 @@ const Home = () => {
       <div className="flex flex-col items-center gap-2">
         <h5 className="self-start font-bold leading-tight">Create new room</h5>
 
-        <button className="btn" onClick={handleCreateRoom}>
+        <button type="button" className="btn" onClick={handleCreateRoom}>
           Create
         </button>
       </div>

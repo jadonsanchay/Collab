@@ -17,7 +17,11 @@ const ShareModal = () => {
 
   return (
     <div className="relative flex flex-col items-center rounded-md bg-white p-10 pt-5">
-      <button onClick={closeModal} className="absolute top-5 right-5">
+      <button
+        type="button"
+        onClick={closeModal}
+        className="absolute right-5 top-5"
+      >
         <AiOutlineClose />
       </button>
       <h2 className="text-2xl font-bold">Invite</h2>
@@ -26,7 +30,11 @@ const ShareModal = () => {
       </h3>
       <div className="relative mt-2">
         <input type="text" value={url} readOnly className="input sm:w-96" />
-        <button className="btn absolute right-0 h-full" onClick={handleCopy}>
+        <button
+          type="button"
+          className="btn absolute right-0 h-full"
+          onClick={handleCopy}
+        >
           Copy
         </button>
       </div>

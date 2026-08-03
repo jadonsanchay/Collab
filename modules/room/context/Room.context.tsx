@@ -4,6 +4,7 @@ import {
   RefObject,
   SetStateAction,
   useEffect,
+  useMemo,
   useRef,
   useState,
   ReactNode,
@@ -26,7 +27,7 @@ export const roomContext = createContext<{
   canvasRef: RefObject<HTMLCanvasElement | null>;
   bgRef: RefObject<HTMLCanvasElement | null>;
   selectionRefs: RefObject<HTMLButtonElement[]>;
-  minimapRef: RefObject<HTMLCanvasElement|null>;
+  minimapRef: RefObject<HTMLCanvasElement | null>;
   moveImage: { base64: string; x?: number; y?: number };
   setMoveImage: Dispatch<
     SetStateAction<{
@@ -115,24 +116,34 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [handleAddUser, handleRemoveUser, setRoom, users]);
 
-  return (
-    <roomContext.Provider
-      value={{
-        x,
-        y,
-        bgRef,
-        undoRef,
-        redoRef,
-        canvasRef,
-        setMoveImage,
-        moveImage,
-        minimapRef,
-        selectionRefs,
-      }}
-    >
-      {children}
-    </roomContext.Provider>
+  const value = useMemo(
+    () => ({
+      x,
+      y,
+      bgRef,
+      undoRef,
+      redoRef,
+      canvasRef,
+      setMoveImage,
+      moveImage,
+      minimapRef,
+      selectionRefs,
+    }),
+    [
+      x,
+      y,
+      bgRef,
+      undoRef,
+      redoRef,
+      canvasRef,
+      setMoveImage,
+      moveImage,
+      minimapRef,
+      selectionRefs,
+    ],
   );
+
+  return <roomContext.Provider value={value}>{children}</roomContext.Provider>;
 };
 
 export default RoomContextProvider;

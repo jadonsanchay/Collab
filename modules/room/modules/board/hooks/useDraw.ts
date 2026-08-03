@@ -54,7 +54,7 @@ export const useDraw = (blocked: boolean) => {
         movedX.get() * -1,
         movedY.get() * -1,
         vw.width,
-        vw.height
+        vw.height,
       );
 
     if (tempImageData)

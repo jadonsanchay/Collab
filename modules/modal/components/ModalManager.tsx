@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRecoilState } from 'recoil';
 import Portal from '@/common/components/portal/components/Portal';
-import { bgAnimation, modalAnimation } from '../animations/ModalManager.animations';
-import { modalAtom } from '../recoil/modal.atom';
 import { DEFAULT_EASE } from '@/common/constants/easings';
+import {
+  bgAnimation,
+  modalAnimation,
+} from '../animations/ModalManager.animations';
+import { modalAtom } from '../recoil/modal.atom';
 
 const ModalManager = () => {
   const [{ opened, modal }, setModal] = useRecoilState(modalAtom);
@@ -28,7 +31,7 @@ const ModalManager = () => {
     <Portal>
       <motion.div
         className="absolute z-40 flex min-h-full w-full items-center justify-center bg-black/80"
-        onClick={() => setModal({ modal: <></>, opened: false })}
+        onClick={() => setModal({ modal: null, opened: false })}
         variants={bgAnimation}
         initial="closed"
         animate={opened ? 'opened' : 'closed'}

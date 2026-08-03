@@ -58,21 +58,24 @@ const MoveImage = () => {
     >
       <div className="absolute bottom-full mb-2 flex gap-3">
         <button
+          type="button"
           className="rounded-full bg-gray-200 p-2"
           onClick={handlePlaceImage}
         >
           <AiOutlineCheck />
         </button>
         <button
+          type="button"
           className="rounded-full bg-gray-200 p-2"
           onClick={() => setMoveImage({ base64: '' })}
         >
           <AiOutlineClose />
         </button>
       </div>
+      {/* eslint-disable-next-line @next/next/no-img-element -- pasted images are base64 data URIs with no known dimensions, so next/image isn't applicable */}
       <img
         className="pointer-events-none"
-        alt="image to place"
+        alt="pending placement on the board"
         src={moveImage.base64}
       />
     </motion.div>

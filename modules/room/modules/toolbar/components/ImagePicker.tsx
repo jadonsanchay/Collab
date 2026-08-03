@@ -13,14 +13,13 @@ const ImagePicker = () => {
     const handlePaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (items) {
-        // eslint-disable-next-line no-restricted-syntax
-        for (const item of items) {
+        Array.from(items).forEach((item) => {
           if (item.type.includes('image')) {
             const file = item.getAsFile();
             if (file)
               optimizeImage(file, (uri) => setMoveImage({ base64: uri }));
           }
-        }
+        });
       }
     };
 
@@ -46,7 +45,11 @@ const ImagePicker = () => {
   };
 
   return (
-    <button className="btn-icon text-xl" onClick={handleImageInput}>
+    <button
+      type="button"
+      className="btn-icon text-xl"
+      onClick={handleImageInput}
+    >
       <BsFillImageFill />
     </button>
   );

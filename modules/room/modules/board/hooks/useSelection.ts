@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 import { toast } from 'react-toastify';
 
@@ -60,6 +60,8 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
       if (selection) tempSelection = selection;
     };
 
+    // drawAllMoves is passed in fresh every render (not memoized by the caller), so including
+    // it here would redraw on every unrelated render instead of only on selection changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selection, ctx]);
 
@@ -93,50 +95,51 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
     };
   }, [selection]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const makeBlob = async (withBg?: boolean) => {
-    if (!selection) return null;
+  const makeBlob = useCallback(
+    async (withBg?: boolean) => {
+      if (!selection) return null;
 
-    const { x, y, width, height } = dimension;
+      const { x, y, width, height } = dimension;
 
-    const imageData = ctx?.getImageData(x, y, width, height);
+      const imageData = ctx?.getImageData(x, y, width, height);
 
-    if (imageData) {
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = width;
-      tempCanvas.height = height;
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const tempCtx = canvas.getContext('2d');
+      if (imageData) {
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = width;
+        tempCanvas.height = height;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const tempCtx = canvas.getContext('2d');
 
-      if (tempCtx && bgRef.current) {
-        const bgImage = bgRef.current
-          .getContext('2d')
-          ?.getImageData(x, y, width, height);
+        if (tempCtx && bgRef.current) {
+          const bgImage = bgRef.current
+            .getContext('2d')
+            ?.getImageData(x, y, width, height);
 
-        if (bgImage && withBg) tempCtx.putImageData(bgImage, 0, 0);
+          if (bgImage && withBg) tempCtx.putImageData(bgImage, 0, 0);
 
-        const sTempCtx = tempCanvas.getContext('2d');
-        sTempCtx?.putImageData(imageData, 0, 0);
+          const sTempCtx = tempCanvas.getContext('2d');
+          sTempCtx?.putImageData(imageData, 0, 0);
 
-        tempCtx.drawImage(tempCanvas, 0, 0);
+          tempCtx.drawImage(tempCanvas, 0, 0);
 
-        const blob: Blob = await new Promise((resolve) => {
-          canvas.toBlob((blobGenerated) => {
-            if (blobGenerated) resolve(blobGenerated);
+          const blob: Blob = await new Promise((resolve) => {
+            canvas.toBlob((blobGenerated) => {
+              if (blobGenerated) resolve(blobGenerated);
+            });
           });
-        });
 
-        return blob;
+          return blob;
+        }
       }
-    }
 
-    return null;
-  };
+      return null;
+    },
+    [selection, dimension, ctx, bgRef],
+  );
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const createDeleteMove = () => {
+  const createDeleteMove = useCallback(() => {
     if (!selection) return null;
 
     let { x, y, width, height } = dimension;
@@ -174,10 +177,9 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
     socket.emit('draw', move);
 
     return move;
-  };
+  }, [selection, dimension, options]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const handleCopy = async () => {
+  const handleCopy = useCallback(async () => {
     const blob = await makeBlob(true);
 
     if (blob)
@@ -193,7 +195,7 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
             theme: 'colored',
           });
         });
-  };
+  }, [makeBlob]);
 
   useEffect(() => {
     const handleSelection = async (e: KeyboardEvent) => {

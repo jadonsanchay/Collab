@@ -60,7 +60,7 @@ const Canvas = () => {
   }, [ctx]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden">
+    <div className="relative size-full overflow-hidden">
       <motion.canvas
         // SETTINGS
         ref={canvasRef}
@@ -100,7 +100,7 @@ const Canvas = () => {
         onTouchStart={(e) =>
           handleStartDrawing(
             e.changedTouches[0].clientX,
-            e.changedTouches[0].clientY
+            e.changedTouches[0].clientY,
           )
         }
         onTouchEnd={handleEndDrawing}
@@ -113,6 +113,7 @@ const Canvas = () => {
       <MiniMap dragging={dragging} />
 
       <button
+        type="button"
         className={`absolute bottom-14 right-5 z-10 rounded-xl md:bottom-5 ${
           dragging ? 'bg-green-500' : 'bg-zinc-300 text-black'
         } p-3 text-lg text-white`}

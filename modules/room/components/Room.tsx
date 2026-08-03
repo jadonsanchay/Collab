@@ -14,7 +14,7 @@ const Room = () => {
 
   return (
     <RoomContextProvider>
-      <div className="relative h-full w-full overflow-hidden">
+      <div className="relative size-full overflow-hidden">
         <UserList />
         <ToolBar />
         <Board />
