@@ -23,6 +23,9 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
   const bg = useBackground();
   const { clearSelection } = useSetSelection();
 
+  // Sorting by server-assigned timestamp (not client-side ordering) is what makes replay
+  // deterministic across clients without needing OT/CRDT — draw moves are additive/commutative,
+  // so "same sorted order everywhere" is enough to converge on the same canvas.
   const sortedMoves = useMemo(() => {
     const { usersMoves, movesWithoutUser, myMoves } = room;
 

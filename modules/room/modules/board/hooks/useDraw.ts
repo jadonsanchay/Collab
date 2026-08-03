@@ -15,6 +15,9 @@ import { drawRect, drawCircle, drawLine } from '../helpers/Canvas.helpers';
 import { useBoardPosition } from './useBoardPosition';
 import { useCtx } from './useCtx';
 
+// Module-level (not state/ref) so the in-progress stroke survives across renders without
+// re-rendering on every pointer-move — but this means only one draw-in-progress can exist
+// at a time across all instances of this hook.
 let tempMoves: [number, number][] = [];
 let tempCircle = { cX: 0, cY: 0, radiusX: 0, radiusY: 0 };
 let tempSize = { width: 0, height: 0 };

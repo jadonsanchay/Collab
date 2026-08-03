@@ -30,6 +30,8 @@ nextApp.prepare().then(async () => {
 
   const rooms = new Map<string, Room>();
 
+  // Assumes the room and this socket's entry already exist — every code path that
+  // calls addMove/undoMove only runs after join_room/create_room has initialized both.
   const addMove = (roomId: string, socketId: string, move: Move) => {
     const room = rooms.get(roomId)!;
 
