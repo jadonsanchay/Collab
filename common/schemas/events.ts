@@ -23,6 +23,12 @@ export const joinRoomSchema = z.object({
 
 export const drawSchema = drawPayloadSchema;
 
+export const rejoinRoomSchema = z.object({
+  roomId: roomIdSchema,
+  // A client that has applied nothing yet reports 0.
+  lastSeq: z.number().int().nonnegative(),
+});
+
 export const mouseMoveSchema = z.object({
   x: z.number(),
   y: z.number(),

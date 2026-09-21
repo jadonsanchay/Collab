@@ -2,6 +2,7 @@ import ErrorBoundary from '@/common/components/ErrorBoundary';
 import { useRoom } from '@/common/recoil/room';
 
 import RoomContextProvider from '../context/Room.context';
+import ConnectionBanner from './ConnectionBanner';
 import Board from '../modules/board';
 import Chat from '../modules/chat';
 import ToolBar from '../modules/toolbar';
@@ -17,6 +18,7 @@ const Room = () => {
     <ErrorBoundary>
       <RoomContextProvider>
         <div className="relative size-full overflow-hidden">
+          <ConnectionBanner />
           <UserList />
           <ToolBar />
           <Board />

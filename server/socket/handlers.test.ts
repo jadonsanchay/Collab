@@ -27,6 +27,7 @@ import type {
 import type { RoomStore } from '../rooms/RoomStore';
 import { MAX_ROOM_USERS } from '../rooms/RoomStore';
 import { createAppServer } from '../app';
+import { loadConfig } from '../config';
 import { logger } from '../logger';
 import { makeMove } from '../testing/fixtures';
 
@@ -118,6 +119,9 @@ describe('socket handlers', () => {
       nextHandler: (_req, res) => {
         res.end('next');
       },
+      // A dropped socket now holds its place for a grace window, so these
+      // tests use a short one rather than waiting out the production minute.
+      config: { ...loadConfig({}), USER_GRACE_MS: 30, SWEEP_INTERVAL_MS: 500 },
     });
 
     httpServer = server.server;
@@ -139,6 +143,7 @@ describe('socket handlers', () => {
   afterAll(async () => {
     alice.disconnect();
     bob.disconnect();
+    rooms.stop();
     await closeIo();
   });
 
@@ -169,8 +174,9 @@ describe('socket handlers', () => {
 
     // Maps do not survive the socket encoder, which is why the handler sends
     // them as JSON alongside the room object.
+    // Only what a client needs: no socket id, no timer handle, no internals.
     expect(JSON.parse(usersToParse)).toEqual([
-      [alice.userId, { userId: alice.userId, name: 'Alice', color: expect.any(String) }],
+      [alice.userId, { name: 'Alice', color: expect.any(String), offline: false }],
     ]);
     expect(JSON.parse(usersMovesToParse)).toEqual([[alice.userId, []]]);
   });

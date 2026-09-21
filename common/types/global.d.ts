@@ -17,6 +17,8 @@ export type {
 export interface User {
   name: string;
   color: string;
+  /** Set while the user is inside their disconnect grace window. */
+  offline?: boolean;
 }
 
 /**
@@ -62,6 +64,22 @@ export interface ServerToClientEvents {
   mouse_moved: (x: number, y: number, userId: string) => void;
   /** Colour is assigned by the server so every client agrees on it. */
   new_user: (userId: string, username: string, color: string) => void;
+  /**
+   * What a reconnecting client missed: moves after the sequence number it
+   * reported, grouped by author, plus the current user list. Sending only the
+   * gap avoids replaying a whole board to resume a session.
+   */
+  room_delta: (
+    usersMovesToParse: string,
+    drawedToParse: string,
+    usersToParse: string,
+  ) => void;
+  /**
+   * The user's socket dropped but their place in the room is being held. Both
+   * of these are additive: `user_disconnected` still means gone for good.
+   */
+  user_offline: (userId: string) => void;
+  user_online: (userId: string) => void;
   user_disconnected: (userId: string) => void;
   new_msg: (userId: string, msg: string) => void;
   /**
@@ -79,6 +97,11 @@ export interface ClientToServerEvents {
   create_room: (username: string) => void;
   join_room: (room: string, username: string) => void;
   joined_room: () => void;
+  /**
+   * Asks to resume an existing session after a reconnect, reporting the
+   * highest sequence number this client has already applied.
+   */
+  rejoin_room: (roomId: string, lastSeq: number) => void;
   leave_room: () => void;
   send_msg: (msg: string) => void;
 }

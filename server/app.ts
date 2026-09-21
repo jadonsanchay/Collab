@@ -8,6 +8,7 @@ import type {
   ServerToClientEvents,
 } from '@/common/types/global';
 
+import { loadConfig, type Config } from './config';
 import { RoomStore } from './rooms/RoomStore';
 import { registerSocketHandlers } from './socket/handlers';
 import { registerIdentity, type SocketData } from './socket/identity';
@@ -29,8 +30,11 @@ export type NextRequestHandler = (
  */
 export const createAppServer = ({
   nextHandler,
+  config = loadConfig(),
 }: {
   nextHandler: NextRequestHandler;
+  /** Overridable so tests can use grace windows measured in milliseconds. */
+  config?: Config;
 }) => {
   const app = express();
   const server = createServer(app);
@@ -50,7 +54,19 @@ export const createAppServer = ({
     maxHttpBufferSize: 2 * 1024 * 1024,
   });
 
-  const rooms = new RoomStore();
+  const rooms = new RoomStore({
+    userGraceMs: config.USER_GRACE_MS,
+    roomGraceMs: config.ROOM_GRACE_MS,
+    sweepIntervalMs: config.SWEEP_INTERVAL_MS,
+    /**
+     * The store holds a disconnected user's place until their grace window
+     * expires. This is the point at which they are gone for good, so this is
+     * where the room is finally told.
+     */
+    onUserFinalized: (roomId, userId) => {
+      io.to(roomId).emit('user_disconnected', userId);
+    },
+  });
 
   // Order matters: identity runs as middleware, so every handler can rely on
   // socket.data.userId being present and valid.
@@ -64,5 +80,5 @@ export const createAppServer = ({
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));
 
-  return { app, server, io, rooms };
+  return { app, server, io, rooms, config };
 };

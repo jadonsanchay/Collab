@@ -8,24 +8,24 @@ export const useSocketDraw = (drawing: boolean) => {
   const { handleAddMoveToUser, handleRemoveMoveFromUser } = useSetUsers();
 
   useEffect(() => {
-    let moveToDrawLater: Move | undefined;
-    let userIdLater = '';
+    /**
+     * Remote moves that arrived mid-stroke, applied once this stroke finishes.
+     *
+     * This used to be a single move and a single user id, so if two people
+     * drew while you were drawing, only the last of their strokes ever
+     * appeared — the earlier ones were overwritten and silently lost.
+     */
+    const deferred: { userId: string; move: Move }[] = [];
 
     socket.on('user_draw', (move, userId) => {
-      if (!drawing) {
-        handleAddMoveToUser(userId, move);
-      } else {
-        moveToDrawLater = move;
-        userIdLater = userId;
-      }
+      if (drawing) deferred.push({ userId, move });
+      else handleAddMoveToUser(userId, move);
     });
 
     return () => {
       socket.off('user_draw');
 
-      if (moveToDrawLater && userIdLater) {
-        handleAddMoveToUser(userIdLater, moveToDrawLater);
-      }
+      deferred.forEach(({ userId, move }) => handleAddMoveToUser(userId, move));
     };
   }, [drawing, handleAddMoveToUser]);
 

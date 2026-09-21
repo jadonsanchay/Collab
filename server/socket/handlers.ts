@@ -6,6 +6,7 @@ import {
   drawSchema,
   joinRoomSchema,
   mouseMoveSchema,
+  rejoinRoomSchema,
   sendMsgSchema,
 } from '@/common/schemas/events';
 import type {
@@ -15,6 +16,7 @@ import type {
 
 import { logger } from '../logger';
 import type { RoomStore } from '../rooms/RoomStore';
+import { toPublicUsers } from '../rooms/types';
 import type { SocketData } from './identity';
 import { withinLimit } from './rateLimit';
 import { safeHandler } from './safeHandler';
@@ -95,7 +97,7 @@ export const registerSocketHandlers = (
         }
 
         // parsed.data is the sanitized name: trimmed, control characters gone.
-        const { roomId } = rooms.create(userId, parsed.data);
+        const { roomId } = rooms.create(userId, parsed.data, socket.id);
 
         socket.join(roomId);
 
@@ -137,7 +139,14 @@ export const registerSocketHandlers = (
           return;
         }
 
-        if (rooms.join(parsed.data.roomId, userId, parsed.data.username)) {
+        if (
+          rooms.join(
+            parsed.data.roomId,
+            userId,
+            parsed.data.username,
+            socket.id,
+          )
+        ) {
           socket.join(parsed.data.roomId);
 
           io.to(socket.id).emit('joined', parsed.data.roomId);
@@ -160,13 +169,51 @@ export const registerSocketHandlers = (
           'room',
           room,
           JSON.stringify([...room.usersMoves]),
-          JSON.stringify([...room.users]),
+          JSON.stringify(toPublicUsers(room.users)),
         );
 
         const me = room.users.get(userId);
         if (!me) return;
 
         socket.broadcast.to(roomId).emit('new_user', userId, me.name, me.color);
+      }),
+    );
+
+    socket.on(
+      'rejoin_room',
+      safeHandler('rejoin_room', (roomId, lastSeq) => {
+        const parsed = rejoinRoomSchema.safeParse({ roomId, lastSeq });
+
+        if (!parsed.success) {
+          dropped('rejoin_room', parsed.error);
+          // Fall back to the name gate rather than leaving the client waiting.
+          io.to(socket.id).emit('joined', '', true);
+          return;
+        }
+
+        const room = rooms.get(parsed.data.roomId);
+        const existing = room?.users.get(userId);
+
+        // No room, or the grace window already expired and the place was
+        // given up. Either way there is no session to resume.
+        if (!room || !existing) {
+          io.to(socket.id).emit('joined', '', true);
+          return;
+        }
+
+        rooms.join(parsed.data.roomId, userId, existing.name, socket.id);
+        socket.join(parsed.data.roomId);
+
+        const delta = rooms.deltaSince(parsed.data.roomId, parsed.data.lastSeq);
+
+        io.to(socket.id).emit(
+          'room_delta',
+          JSON.stringify(delta.usersMoves),
+          JSON.stringify(delta.drawed),
+          JSON.stringify(toPublicUsers(room.users)),
+        );
+
+        socket.broadcast.to(parsed.data.roomId).emit('user_online', userId);
       }),
     );
 
@@ -284,6 +331,14 @@ export const registerSocketHandlers = (
       safeHandler('disconnecting', () => {
         const roomId = getRoomId();
         if (!roomId) return;
+
+        // A dropped socket is not the same as leaving. The place is held for
+        // the grace window, and `user_disconnected` is broadcast only once it
+        // expires — see the finalize callback wired up in `app.ts`.
+        if (rooms.markOffline(roomId, userId)) {
+          socket.broadcast.to(roomId).emit('user_offline', userId);
+          return;
+        }
 
         leaveRoom(roomId);
 

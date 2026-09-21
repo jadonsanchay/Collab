@@ -97,11 +97,26 @@ export const useSetUsers = () => {
     });
   };
 
+  /** Dims a user whose socket dropped but whose place is still held. */
+  const handleSetUserPresence = (userId: string, offline: boolean) => {
+    setRoom((prev) => {
+      const user = prev.users.get(userId);
+
+      if (!user) return prev;
+
+      const newUsers = new Map(prev.users);
+      newUsers.set(userId, { ...user, offline });
+
+      return { ...prev, users: newUsers };
+    });
+  };
+
   return {
     handleAddUser,
     handleRemoveUser,
     handleAddMoveToUser,
     handleRemoveMoveFromUser,
+    handleSetUserPresence,
   };
 };
 

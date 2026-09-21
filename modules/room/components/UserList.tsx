@@ -12,7 +12,14 @@ const UserList = () => {
           style={{
             backgroundColor: users.get(userId)?.color || 'black',
             marginLeft: index !== 0 ? '-0.5rem' : 0,
+            // Dimmed while their socket is gone but their place is still held.
+            opacity: users.get(userId)?.offline ? 0.4 : 1,
           }}
+          title={
+            users.get(userId)?.offline
+              ? `${users.get(userId)?.name} (reconnecting)`
+              : users.get(userId)?.name
+          }
         >
           {users.get(userId)?.name.split('')[0] || 'A'}
         </div>
