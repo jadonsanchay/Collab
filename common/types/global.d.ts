@@ -53,6 +53,11 @@ export interface ServerToClientEvents {
   new_user: (userId: string, username: string) => void;
   user_disconnected: (userId: string) => void;
   new_msg: (userId: string, msg: string) => void;
+  /**
+   * Sent when an event was dropped for exceeding its rate limit. Only emitted
+   * for events where silence would look like a bug to the person who acted.
+   */
+  rate_limited: (event: string) => void;
 }
 
 export interface ClientToServerEvents {

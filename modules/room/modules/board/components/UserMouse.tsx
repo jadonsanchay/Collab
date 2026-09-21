@@ -42,12 +42,12 @@ const UserMouse = ({ userId }: { userId: string }) => {
   }, [userId]);
 
   useEffect(() => {
-    const unsubscribe = boardPos.x.onChange(setX);
+    const unsubscribe = boardPos.x.on('change', setX);
     return unsubscribe;
   }, [boardPos.x]);
 
   useEffect(() => {
-    const unsubscribe = boardPos.y.onChange(setY);
+    const unsubscribe = boardPos.y.on('change', setY);
     return unsubscribe;
   }, [boardPos.y]);
 

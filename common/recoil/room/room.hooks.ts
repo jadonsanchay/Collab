@@ -30,10 +30,17 @@ export const useSetRoomId = () => {
 export const useSetUsers = () => {
   const setRoom = useSetRecoilState(roomAtom);
 
+  /**
+   * Every handler below copies the Maps before changing them. They used to
+   * assign `prev.users` to a new name and mutate that, which is the same Map:
+   * Recoil then held state that had already changed underneath it, so a
+   * re-render could be skipped because the old and new values were identical
+   * by reference.
+   */
   const handleAddUser = (userId: string, name: string) => {
     setRoom((prev) => {
-      const newUsers = prev.users;
-      const newUsersMoves = prev.usersMoves;
+      const newUsers = new Map(prev.users);
+      const newUsersMoves = new Map(prev.usersMoves);
 
       const color = getNextColor([...newUsers.values()].pop()?.color);
 
@@ -49,13 +56,14 @@ export const useSetUsers = () => {
 
   const handleRemoveUser = (userId: string) => {
     setRoom((prev) => {
-      const newUsers = prev.users;
-      const newUsersMoves = prev.usersMoves;
+      const newUsers = new Map(prev.users);
+      const newUsersMoves = new Map(prev.usersMoves);
 
       const userMoves = newUsersMoves.get(userId);
 
       newUsers.delete(userId);
       newUsersMoves.delete(userId);
+
       return {
         ...prev,
         users: newUsers,
@@ -67,21 +75,26 @@ export const useSetUsers = () => {
 
   const handleAddMoveToUser = (userId: string, moves: Move) => {
     setRoom((prev) => {
-      const newUsersMoves = prev.usersMoves;
+      const newUsersMoves = new Map(prev.usersMoves);
       const oldMoves = prev.usersMoves.get(userId);
 
       newUsersMoves.set(userId, [...(oldMoves || []), moves]);
+
       return { ...prev, usersMoves: newUsersMoves };
     });
   };
 
   const handleRemoveMoveFromUser = (userId: string) => {
     setRoom((prev) => {
-      const newUsersMoves = prev.usersMoves;
-      const oldMoves = prev.usersMoves.get(userId);
-      oldMoves?.pop();
+      const newUsersMoves = new Map(prev.usersMoves);
 
-      newUsersMoves.set(userId, oldMoves || []);
+      // Copy the array too: `pop` on the stored one would mutate the move list
+      // Recoil is still holding.
+      const oldMoves = [...(prev.usersMoves.get(userId) || [])];
+      oldMoves.pop();
+
+      newUsersMoves.set(userId, oldMoves);
+
       return { ...prev, usersMoves: newUsersMoves };
     });
   };

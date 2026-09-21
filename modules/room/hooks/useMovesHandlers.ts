@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { isRedo, isTypingTarget, isUndo } from '@/common/lib/keyboard';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
 import { useBackground } from '@/common/recoil/background';
@@ -217,10 +218,17 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
 
   useEffect(() => {
     const handleUndoRedoKeyboard = (e: KeyboardEvent) => {
-      if (e.key === 'z' && e.ctrlKey) {
-        handleUndo();
-      } else if (e.key === 'y' && e.ctrlKey) {
+      // Never steal a keystroke from a text field: undo there means undo the
+      // typing, not the drawing.
+      if (isTypingTarget(e.target)) return;
+
+      // Redo first: Cmd+Shift+Z would otherwise also satisfy undo.
+      if (isRedo(e)) {
+        e.preventDefault();
         handleRedo();
+      } else if (isUndo(e)) {
+        e.preventDefault();
+        handleUndo();
       }
     };
 

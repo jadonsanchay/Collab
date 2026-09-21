@@ -109,10 +109,19 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       handleRemoveUser(userId);
     });
 
+    socket.on('rate_limited', () => {
+      toast('You are sending messages too quickly.', {
+        position: 'top-center',
+        theme: 'colored',
+        type: 'warning',
+      });
+    });
+
     return () => {
       socket.off('room');
       socket.off('new_user');
       socket.off('user_disconnected');
+      socket.off('rate_limited');
     };
   }, [handleAddUser, handleRemoveUser, setRoom, users]);
 

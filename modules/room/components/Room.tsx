@@ -1,3 +1,4 @@
+import ErrorBoundary from '@/common/components/ErrorBoundary';
 import { useRoom } from '@/common/recoil/room';
 
 import RoomContextProvider from '../context/Room.context';
@@ -13,14 +14,16 @@ const Room = () => {
   if (!room.id) return <NameInput />;
 
   return (
-    <RoomContextProvider>
-      <div className="relative size-full overflow-hidden">
-        <UserList />
-        <ToolBar />
-        <Board />
-        <Chat />
-      </div>
-    </RoomContextProvider>
+    <ErrorBoundary>
+      <RoomContextProvider>
+        <div className="relative size-full overflow-hidden">
+          <UserList />
+          <ToolBar />
+          <Board />
+          <Chat />
+        </div>
+      </RoomContextProvider>
+    </ErrorBoundary>
   );
 };
 

@@ -3,8 +3,10 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
+import { isCopy, isDelete, isTypingTarget } from '@/common/lib/keyboard';
 import { socket } from '@/common/lib/socket';
 import { useOptionsValue } from '@/common/recoil/options';
+import { MAX_IMAGE_BASE64_LENGTH } from '@/common/schemas/move';
 import { Move } from '@/common/types/global';
 
 import { useMoveImage } from '../../../hooks/useMoveImage';
@@ -125,9 +127,17 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
           tempCtx.drawImage(tempCanvas, 0, 0);
 
           const blob: Blob = await new Promise((resolve) => {
-            canvas.toBlob((blobGenerated) => {
-              if (blobGenerated) resolve(blobGenerated);
-            });
+            // WEBP at 0.8 rather than the default full-resolution PNG. A
+            // selection of any size used to produce megabytes of base64,
+            // which the server now refuses; this is typically 5 to 20 times
+            // smaller and matches what the image picker already uses.
+            canvas.toBlob(
+              (blobGenerated) => {
+                if (blobGenerated) resolve(blobGenerated);
+              },
+              'image/webp',
+              0.8,
+            );
           });
 
           return blob;
@@ -199,8 +209,21 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
 
   useEffect(() => {
     const handleSelection = async (e: KeyboardEvent) => {
-      if (e.key === 'c' && e.ctrlKey) handleCopy();
-      if (e.key === 'Delete' && selection) createDeleteMove();
+      // Both of these used to fire while typing, so a "c" in the chat box
+      // copied the board and Delete erased pixels mid-sentence.
+      if (isTypingTarget(e.target)) return;
+
+      // Only intercept copy when there is actually something selected;
+      // otherwise Cmd+C should copy whatever the browser would.
+      if (selection && isCopy(e)) {
+        e.preventDefault();
+        handleCopy();
+      }
+
+      if (selection && isDelete(e)) {
+        e.preventDefault();
+        createDeleteMove();
+      }
     };
 
     document.addEventListener('keydown', handleSelection);
@@ -223,14 +246,30 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
         reader.addEventListener('loadend', () => {
           const base64 = reader.result?.toString();
 
-          if (base64) {
-            createDeleteMove();
-            setMoveImage({
-              base64,
-              x: Math.min(x, x + width),
-              y: Math.min(y, y + height),
+          if (!base64) return;
+
+          /**
+           * Checked before anything is erased. The delete lands now, but the
+           * image is only sent when the user drops it, so a payload the server
+           * would reject has to be caught here — otherwise the selected pixels
+           * are gone and nothing ever comes back to replace them.
+           */
+          if (base64.length > MAX_IMAGE_BASE64_LENGTH) {
+            toast('That selection is too large to move.', {
+              position: 'top-center',
+              theme: 'colored',
+              type: 'warning',
             });
+
+            return;
           }
+
+          createDeleteMove();
+          setMoveImage({
+            base64,
+            x: Math.min(x, x + width),
+            y: Math.min(y, y + height),
+          });
         });
       }
     };

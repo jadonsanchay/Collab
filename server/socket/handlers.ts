@@ -16,6 +16,7 @@ import type {
 
 import { logger } from '../logger';
 import type { RoomStore } from '../rooms/RoomStore';
+import { forgetSocket, withinLimit } from './rateLimit';
 import { safeHandler } from './safeHandler';
 
 /** The `error` half of a Zod `safeParse` result, narrowed to what is logged. */
@@ -36,6 +37,12 @@ export const registerSocketHandlers = (
   rooms: RoomStore,
 ) => {
   io.on('connection', (socket) => {
+    const throttled = (event: string) => {
+      // Debug, not warn: hitting a limit is the system working as intended,
+      // and a noisy client would otherwise fill the log with it.
+      logger.debug({ event, socketId: socket.id }, 'rate limit exceeded');
+    };
+
     const dropped = (event: string, error: ParseFailure) => {
       logger.warn(
         {
@@ -65,7 +72,12 @@ export const registerSocketHandlers = (
 
     socket.on(
       'create_room',
-      safeHandler('create_room', (username) => {
+      safeHandler('create_room', async (username) => {
+        if (!(await withinLimit('room_entry', socket.id))) {
+          throttled('create_room');
+          return;
+        }
+
         const parsed = createRoomSchema.safeParse(username);
 
         if (!parsed.success) {
@@ -95,7 +107,12 @@ export const registerSocketHandlers = (
 
     socket.on(
       'join_room',
-      safeHandler('join_room', (roomId, username) => {
+      safeHandler('join_room', async (roomId, username) => {
+        if (!(await withinLimit('room_entry', socket.id))) {
+          throttled('join_room');
+          return;
+        }
+
         const parsed = joinRoomSchema.safeParse({ roomId, username });
 
         if (!parsed.success) {
@@ -157,9 +174,14 @@ export const registerSocketHandlers = (
 
     socket.on(
       'draw',
-      safeHandler('draw', (move) => {
+      safeHandler('draw', async (move) => {
         const roomId = getRoomId();
         if (!roomId) return;
+
+        if (!(await withinLimit('draw', socket.id))) {
+          throttled('draw');
+          return;
+        }
 
         const parsed = drawSchema.safeParse(move);
 
@@ -198,9 +220,11 @@ export const registerSocketHandlers = (
 
     socket.on(
       'mouse_move',
-      safeHandler('mouse_move', (x, y) => {
+      safeHandler('mouse_move', async (x, y) => {
         const roomId = getRoomId();
         if (!roomId) return;
+
+        if (!(await withinLimit('mouse_move', socket.id))) return;
 
         const parsed = mouseMoveSchema.safeParse({ x, y });
 
@@ -216,9 +240,17 @@ export const registerSocketHandlers = (
 
     socket.on(
       'send_msg',
-      safeHandler('send_msg', (msg) => {
+      safeHandler('send_msg', async (msg) => {
         const roomId = getRoomId();
         if (!roomId) return;
+
+        if (!(await withinLimit('send_msg', socket.id))) {
+          throttled('send_msg');
+          // The only limit the sender is told about: they typed something and
+          // pressed send, so silence would read as a broken app.
+          socket.emit('rate_limited', 'send_msg');
+          return;
+        }
 
         const parsed = sendMsgSchema.safeParse(msg);
 
@@ -234,6 +266,8 @@ export const registerSocketHandlers = (
     socket.on(
       'disconnecting',
       safeHandler('disconnecting', () => {
+        forgetSocket(socket.id);
+
         const roomId = getRoomId();
         if (!roomId) return;
 
