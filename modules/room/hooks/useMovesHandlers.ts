@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
+import { v4 } from 'uuid';
+
 import { isRedo, isTypingTarget, isUndo } from '@/common/lib/keyboard';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
@@ -24,9 +26,9 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
   const bg = useBackground();
   const { clearSelection } = useSetSelection();
 
-  // Sorting by server-assigned timestamp (not client-side ordering) is what makes replay
-  // deterministic across clients without needing OT/CRDT — draw moves are additive/commutative,
-  // so "same sorted order everywhere" is enough to converge on the same canvas.
+  // Sorting by the server-assigned `seq` is what makes replay deterministic
+  // across clients without needing OT or a CRDT: draw moves are additive, so
+  // "same sorted order everywhere" is enough to converge on the same canvas.
   const sortedMoves = useMemo(() => {
     const { usersMoves, movesWithoutUser, myMoves } = room;
 
@@ -34,7 +36,18 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
 
     usersMoves.forEach((userMoves) => moves.push(...userMoves));
 
-    moves.sort((a, b) => a.timestamp - b.timestamp);
+    /**
+     * Order by the server's sequence, which every client receives identically.
+     * `timestamp` came from `Date.now()` on whichever machine drew the stroke,
+     * so two clients could sort overlapping strokes differently and render
+     * different pictures. It stays as the fallback for moves that have not
+     * been through the server, which sort with seq 0.
+     */
+    moves.sort((a, b) => {
+      if (a.seq && b.seq) return a.seq - b.seq;
+
+      return a.timestamp - b.timestamp;
+    });
 
     return moves;
   }, [room]);
@@ -211,7 +224,9 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
       const move = removeSavedMove();
 
       if (move) {
-        socket.emit('draw', move);
+        // A fresh clientId: this is a new move as far as the server is
+        // concerned, and reusing the old one would be dropped as a duplicate.
+        socket.emit('draw', { ...move, clientId: v4() });
       }
     }
   }, [ctx, removeSavedMove]);

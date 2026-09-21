@@ -24,13 +24,18 @@ export type LimitedEvent = keyof typeof limiters;
 /**
  * Returns true when the event is within budget. Never throws and never
  * rejects: the caller gets a boolean and decides what to drop.
+ *
+ * Budgets are keyed by the stable `userId`, not by `socket.id`, and are never
+ * cleared early. Keyed by connection, reconnecting would hand out a fresh
+ * budget, which is exactly the move a client being throttled would make.
+ * Counters expire on their own once the window passes.
  */
 export const withinLimit = async (
   event: LimitedEvent,
-  socketId: string,
+  userId: string,
 ): Promise<boolean> => {
   try {
-    await limiters[event].consume(socketId);
+    await limiters[event].consume(userId);
 
     return true;
   } catch {
@@ -38,13 +43,4 @@ export const withinLimit = async (
     // is an expected outcome here rather than an error.
     return false;
   }
-};
-
-/** Frees a disconnected socket's counters instead of waiting them out. */
-export const forgetSocket = (socketId: string) => {
-  Object.values(limiters).forEach((limiter) => {
-    limiter.delete(socketId).catch(() => {
-      // A counter that was never created is already forgotten.
-    });
-  });
 };

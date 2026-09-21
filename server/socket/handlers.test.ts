@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import type { Server as HttpServer } from 'http';
 import type { AddressInfo } from 'net';
 import { io as connectClient, type Socket } from 'socket.io-client';
@@ -12,6 +13,7 @@ import {
   vi,
 } from 'vitest';
 
+import { PROTOCOL_VERSION } from '@/common/constants/protocol';
 import {
   MAX_IMAGE_BASE64_LENGTH,
   MAX_PATH_POINTS,
@@ -29,6 +31,9 @@ import { logger } from '../logger';
 import { makeMove } from '../testing/fixtures';
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+/** A connected client plus the identity it presented at the handshake. */
+type Identified = ClientSocket & { userId: string };
 
 const EVENT_TIMEOUT_MS = 2000;
 
@@ -82,15 +87,22 @@ describe('socket handlers', () => {
   let httpServer: HttpServer;
   let closeIo: () => Promise<void>;
   let rooms: RoomStore;
-  let alice: ClientSocket;
-  let bob: ClientSocket;
+  let alice: Identified;
+  let bob: Identified;
   let roomId: string;
 
-  const connect = async (): Promise<ClientSocket> => {
+  /**
+   * Each client gets its own stable identity, which the server now requires at
+   * the handshake. The returned `userId` is what every assertion compares
+   * against — `socket.id` is no longer how anyone is identified.
+   */
+  const connect = async (): Promise<Identified> => {
     const { port } = httpServer.address() as AddressInfo;
+    const userId = randomUUID();
     const socket: ClientSocket = connectClient(`http://localhost:${port}`, {
       transports: ['websocket'],
       forceNew: true,
+      auth: { userId, protocolVersion: PROTOCOL_VERSION },
     });
 
     await new Promise<void>((resolve, reject) => {
@@ -98,7 +110,7 @@ describe('socket handlers', () => {
       socket.once('connect_error', reject);
     });
 
-    return socket;
+    return Object.assign(socket, { userId });
   };
 
   beforeAll(async () => {
@@ -157,8 +169,10 @@ describe('socket handlers', () => {
 
     // Maps do not survive the socket encoder, which is why the handler sends
     // them as JSON alongside the room object.
-    expect(JSON.parse(usersToParse)).toEqual([[alice.id, 'Alice']]);
-    expect(JSON.parse(usersMovesToParse)).toEqual([[alice.id, []]]);
+    expect(JSON.parse(usersToParse)).toEqual([
+      [alice.userId, { userId: alice.userId, name: 'Alice', color: expect.any(String) }],
+    ]);
+    expect(JSON.parse(usersMovesToParse)).toEqual([[alice.userId, []]]);
   });
 
   it('lets a second client join and announces them to the first', async () => {
@@ -170,7 +184,7 @@ describe('socket handlers', () => {
     const newUser = waitFor(alice, 'new_user');
     bob.emit('joined_room');
 
-    await expect(newUser).resolves.toEqual([bob.id, 'Bob']);
+    await expect(newUser).resolves.toEqual([bob.userId, 'Bob', expect.any(String)]);
   });
 
   it('rejects a join for an unknown room and echoes the attempted id', async () => {
@@ -191,7 +205,7 @@ describe('socket handlers', () => {
   it(`rejects a join once a room holds ${MAX_ROOM_USERS} users, echoing the id`, async () => {
     // Uses its own room and its own clients: filling the shared room would
     // race with the disconnects of the tests around it.
-    const clients: ClientSocket[] = [];
+    const clients: Identified[] = [];
 
     /* eslint-disable no-await-in-loop -- the cap depends on how many have
        already joined, so these have to be sequential. */
@@ -240,11 +254,11 @@ describe('socket handlers', () => {
     expect(echoed.timestamp).toBeGreaterThan(0);
     expect(echoed.path).toEqual([[1, 1]]);
     expect(broadcast).toEqual(echoed);
-    expect(authorId).toBe(alice.id);
+    expect(authorId).toBe(alice.userId);
   });
 
   it('stores the drawn move against its author', () => {
-    expect(rooms.get(roomId)?.usersMoves.get(alice.id as string)).toHaveLength(
+    expect(rooms.get(roomId)?.usersMoves.get(alice.userId)).toHaveLength(
       1,
     );
   });
@@ -253,8 +267,8 @@ describe('socket handlers', () => {
     const undone = waitFor(bob, 'user_undo');
     alice.emit('undo');
 
-    await expect(undone).resolves.toEqual([alice.id]);
-    expect(rooms.get(roomId)?.usersMoves.get(alice.id as string)).toEqual([]);
+    await expect(undone).resolves.toEqual([alice.userId]);
+    expect(rooms.get(roomId)?.usersMoves.get(alice.userId)).toEqual([]);
   });
 
   it('broadcasts a chat message to everyone including the sender', async () => {
@@ -263,15 +277,15 @@ describe('socket handlers', () => {
 
     bob.emit('send_msg', 'hello');
 
-    await expect(forBob).resolves.toEqual([bob.id, 'hello']);
-    await expect(forAlice).resolves.toEqual([bob.id, 'hello']);
+    await expect(forBob).resolves.toEqual([bob.userId, 'hello']);
+    await expect(forAlice).resolves.toEqual([bob.userId, 'hello']);
   });
 
   it('broadcasts mouse movement to others only', async () => {
     const moved = waitFor(bob, 'mouse_moved');
     alice.emit('mouse_move', 12, 34);
 
-    await expect(moved).resolves.toEqual([12, 34, alice.id]);
+    await expect(moved).resolves.toEqual([12, 34, alice.userId]);
   });
 
   it('keeps the moves of a user who leaves, and tells the room', async () => {
@@ -287,7 +301,7 @@ describe('socket handlers', () => {
     const disconnected = waitFor(alice, 'user_disconnected');
     departing.emit('leave_room');
 
-    await expect(disconnected).resolves.toEqual([departing.id]);
+    await expect(disconnected).resolves.toEqual([departing.userId]);
     // This is the mechanism that keeps a drawing on the board after its author
     // is gone.
     expect(rooms.get(roomId)?.drawed).toHaveLength(1);
@@ -301,7 +315,7 @@ describe('socket handlers', () => {
     leaving.emit('join_room', roomId, 'Leaving');
     await joined;
 
-    const leavingId = leaving.id as string;
+    const leavingId = leaving.userId;
     const disconnected = waitFor(alice, 'user_disconnected');
     leaving.disconnect();
 
@@ -312,7 +326,7 @@ describe('socket handlers', () => {
   describe('payload validation', () => {
     it('drops an oversized image but keeps an ordinary one', async () => {
       const storedBefore =
-        rooms.get(roomId)?.usersMoves.get(alice.id as string)?.length ?? 0;
+        rooms.get(roomId)?.usersMoves.get(alice.userId)?.length ?? 0;
 
       alice.emit(
         'draw',
@@ -324,7 +338,7 @@ describe('socket handlers', () => {
 
       await expectNoEvent(alice, 'your_move');
       expect(
-        rooms.get(roomId)?.usersMoves.get(alice.id as string),
+        rooms.get(roomId)?.usersMoves.get(alice.userId),
       ).toHaveLength(storedBefore);
 
       // The same move within the cap goes through, so the rejection was the
@@ -340,7 +354,7 @@ describe('socket handlers', () => {
 
       await expect(accepted).resolves.toHaveLength(1);
       expect(
-        rooms.get(roomId)?.usersMoves.get(alice.id as string),
+        rooms.get(roomId)?.usersMoves.get(alice.userId),
       ).toHaveLength(storedBefore + 1);
     });
 
@@ -377,7 +391,7 @@ describe('socket handlers', () => {
       const received = waitFor(bob, 'new_msg');
       alice.emit('send_msg', '  hello  ');
 
-      await expect(received).resolves.toEqual([alice.id, 'hello']);
+      await expect(received).resolves.toEqual([alice.userId, 'hello']);
     });
 
     it('refuses to create a room for an unusable name', async () => {
@@ -417,7 +431,7 @@ describe('socket handlers', () => {
   // Before Step 2, `getRoomId` fell back to the socket's own id, so these
   // events reached room state that never existed and took the process down.
   describe('a socket that has joined no room', () => {
-    let loner: ClientSocket;
+    let loner: Identified;
     let loggedErrors: ReturnType<typeof vi.spyOn>;
 
     beforeAll(async () => {
@@ -456,7 +470,7 @@ describe('socket handlers', () => {
 
       await expectNoEvent(loner, 'your_move');
       // The old socket-id fallback would have looked up a room under this id.
-      expect(rooms.get(loner.id as string)).toBeUndefined();
+      expect(rooms.get(loner.userId)).toBeUndefined();
       await expectStillServed();
     });
 

@@ -3,6 +3,8 @@ import { useEffect } from 'react';
 import { motion, useMotionValue } from 'framer-motion';
 import { AiOutlineCheck, AiOutlineClose } from 'react-icons/ai';
 
+import { v4 } from 'uuid';
+
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { getPos } from '@/common/lib/getPos';
 import { socket } from '@/common/lib/socket';
@@ -30,6 +32,9 @@ const MoveImage = () => {
 
     const move: Move = {
       ...DEFAULT_MOVE,
+      // Identifies this move across a resend, so a retry is recognised by the
+      // server instead of drawn twice.
+      clientId: v4(),
       img: { base64: moveImage.base64 },
       path: [[finalX, finalY]],
       options: {

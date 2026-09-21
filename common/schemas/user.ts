@@ -24,6 +24,13 @@ export const usernameSchema = z
 
 export const roomIdSchema = z.string().regex(ROOM_ID_PATTERN);
 
+/**
+ * The stable per-browser id from `common/lib/identity.ts`, checked at the
+ * handshake. A uuid is required rather than any string so that one client
+ * cannot claim to be another by sending a guessable id.
+ */
+export const userIdSchema = z.string().uuid();
+
 export const chatMessageSchema = z
   .string()
   .transform((value) => value.replace(/[\p{Cc}\p{Cf}]/gu, '').trim())
@@ -31,4 +38,5 @@ export const chatMessageSchema = z
 
 export type Username = z.infer<typeof usernameSchema>;
 export type RoomId = z.infer<typeof roomIdSchema>;
+export type UserId = z.infer<typeof userIdSchema>;
 export type ChatMessage = z.infer<typeof chatMessageSchema>;

@@ -1,7 +1,9 @@
+import { randomUUID } from 'crypto';
 import type { AddressInfo } from 'net';
 import { io as connectClient, type Socket } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import { PROTOCOL_VERSION } from '@/common/constants/protocol';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -11,6 +13,9 @@ import { createAppServer } from '../app';
 import { makeMove } from '../testing/fixtures';
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
+
+/** A connected client plus the identity it presented at the handshake. */
+type Identified = ClientSocket & { userId: string };
 
 /** Long enough for a burst to be delivered and broadcast, well under 1s. */
 const SETTLE_MS = 400;
@@ -22,15 +27,17 @@ const settle = () =>
 
 describe('rate limiting', () => {
   let server: ReturnType<typeof createAppServer>;
-  let alice: ClientSocket;
-  let bob: ClientSocket;
+  let alice: Identified;
+  let bob: Identified;
   let roomId: string;
 
-  const connect = async (): Promise<ClientSocket> => {
+  const connect = async (): Promise<Identified> => {
     const { port } = server.server.address() as AddressInfo;
+    const userId = randomUUID();
     const socket: ClientSocket = connectClient(`http://localhost:${port}`, {
       transports: ['websocket'],
       forceNew: true,
+      auth: { userId, protocolVersion: PROTOCOL_VERSION },
     });
 
     await new Promise<void>((resolve, reject) => {
@@ -38,7 +45,7 @@ describe('rate limiting', () => {
       socket.once('connect_error', reject);
     });
 
-    return socket;
+    return Object.assign(socket, { userId });
   };
 
   beforeAll(async () => {
@@ -101,7 +108,7 @@ describe('rate limiting', () => {
 
   it('caps a burst of 100 draws at 20', async () => {
     const stored = () =>
-      server.rooms.get(roomId)?.usersMoves.get(bob.id as string)?.length ?? 0;
+      server.rooms.get(roomId)?.usersMoves.get(bob.userId)?.length ?? 0;
 
     const before = stored();
 

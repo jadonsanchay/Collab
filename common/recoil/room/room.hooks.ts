@@ -1,6 +1,5 @@
 import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
 
-import { getNextColor } from '@/common/lib/getNextColor';
 import { Move } from '@/common/types/global';
 
 import { DEFAULT_ROOM, roomAtom } from './room.atom';
@@ -37,12 +36,11 @@ export const useSetUsers = () => {
    * re-render could be skipped because the old and new values were identical
    * by reference.
    */
-  const handleAddUser = (userId: string, name: string) => {
+  /** `color` is assigned by the server, so every client shows the same one. */
+  const handleAddUser = (userId: string, name: string, color: string) => {
     setRoom((prev) => {
       const newUsers = new Map(prev.users);
       const newUsersMoves = new Map(prev.usersMoves);
-
-      const color = getNextColor([...newUsers.values()].pop()?.color);
 
       newUsers.set(userId, {
         name,

@@ -10,6 +10,7 @@ import type {
 
 import { RoomStore } from './rooms/RoomStore';
 import { registerSocketHandlers } from './socket/handlers';
+import { registerIdentity, type SocketData } from './socket/identity';
 
 /**
  * Shape of `nextApp.getRequestHandler()`. Declared structurally so tests can
@@ -34,7 +35,12 @@ export const createAppServer = ({
   const app = express();
   const server = createServer(app);
 
-  const io = new Server<ClientToServerEvents, ServerToClientEvents>(server, {
+  const io = new Server<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    Record<string, never>,
+    SocketData
+  >(server, {
     /**
      * Explicit rather than left to the 1 MB default, and sized against the
      * 1.5 MB base64 image cap in the move schema plus room for the rest of
@@ -46,6 +52,9 @@ export const createAppServer = ({
 
   const rooms = new RoomStore();
 
+  // Order matters: identity runs as middleware, so every handler can rely on
+  // socket.data.userId being present and valid.
+  registerIdentity(io);
   registerSocketHandlers(io, rooms);
 
   app.get('/hello', async (_, res) => {

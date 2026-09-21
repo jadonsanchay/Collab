@@ -1,9 +1,12 @@
+import { v4 } from 'uuid';
+
 import type { Move } from '@/common/types/global';
 
 /**
  * A minimal valid `Move`, shared by the unit and integration tests so neither
- * has to restate the whole shape. `id` and `timestamp` are left empty because
- * the server assigns both.
+ * has to restate the whole shape. `id`, `timestamp` and `seq` are left empty
+ * because the server assigns all three; `clientId` gets a real uuid, since the
+ * client is what supplies it and the draw schema requires one.
  */
 export const makeMove = (overrides: Partial<Move> = {}): Move => ({
   circle: { cX: 0, cY: 0, radiusX: 0, radiusY: 0 },
@@ -23,5 +26,7 @@ export const makeMove = (overrides: Partial<Move> = {}): Move => ({
   },
   timestamp: 0,
   id: '',
+  seq: 0,
+  clientId: v4(),
   ...overrides,
 });

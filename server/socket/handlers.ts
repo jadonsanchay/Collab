@@ -1,5 +1,4 @@
 import type { Server } from 'socket.io';
-import { v4 } from 'uuid';
 
 import {
   checkRoomSchema,
@@ -16,7 +15,8 @@ import type {
 
 import { logger } from '../logger';
 import type { RoomStore } from '../rooms/RoomStore';
-import { forgetSocket, withinLimit } from './rateLimit';
+import type { SocketData } from './identity';
+import { withinLimit } from './rateLimit';
 import { safeHandler } from './safeHandler';
 
 /** The `error` half of a Zod `safeParse` result, narrowed to what is logged. */
@@ -33,10 +33,19 @@ type ParseFailure = { issues: { path: PropertyKey[]; message: string }[] };
  * silence. Dropping those would leave the client on a spinner forever.
  */
 export const registerSocketHandlers = (
-  io: Server<ClientToServerEvents, ServerToClientEvents>,
+  io: Server<
+    ClientToServerEvents,
+    ServerToClientEvents,
+    Record<string, never>,
+    SocketData
+  >,
   rooms: RoomStore,
 ) => {
   io.on('connection', (socket) => {
+    // Stable across reconnects, unlike socket.id. Guaranteed by the handshake
+    // middleware, which refuses connections without one.
+    const { userId } = socket.data;
+
     const throttled = (event: string) => {
       // Debug, not warn: hitting a limit is the system working as intended,
       // and a noisy client would otherwise fill the log with it.
@@ -65,7 +74,7 @@ export const registerSocketHandlers = (
     const getRoomId = () => [...socket.rooms].find((room) => room !== socket.id);
 
     const leaveRoom = (roomId: string) => {
-      if (!rooms.leave(roomId, socket.id)) return;
+      if (!rooms.leave(roomId, userId)) return;
 
       socket.leave(roomId);
     };
@@ -73,7 +82,7 @@ export const registerSocketHandlers = (
     socket.on(
       'create_room',
       safeHandler('create_room', async (username) => {
-        if (!(await withinLimit('room_entry', socket.id))) {
+        if (!(await withinLimit('room_entry', userId))) {
           throttled('create_room');
           return;
         }
@@ -86,7 +95,7 @@ export const registerSocketHandlers = (
         }
 
         // parsed.data is the sanitized name: trimmed, control characters gone.
-        const roomId = rooms.create(socket.id, parsed.data);
+        const { roomId } = rooms.create(userId, parsed.data);
 
         socket.join(roomId);
 
@@ -108,7 +117,7 @@ export const registerSocketHandlers = (
     socket.on(
       'join_room',
       safeHandler('join_room', async (roomId, username) => {
-        if (!(await withinLimit('room_entry', socket.id))) {
+        if (!(await withinLimit('room_entry', userId))) {
           throttled('join_room');
           return;
         }
@@ -128,7 +137,7 @@ export const registerSocketHandlers = (
           return;
         }
 
-        if (rooms.join(parsed.data.roomId, socket.id, parsed.data.username)) {
+        if (rooms.join(parsed.data.roomId, userId, parsed.data.username)) {
           socket.join(parsed.data.roomId);
 
           io.to(socket.id).emit('joined', parsed.data.roomId);
@@ -154,9 +163,10 @@ export const registerSocketHandlers = (
           JSON.stringify([...room.users]),
         );
 
-        socket.broadcast
-          .to(roomId)
-          .emit('new_user', socket.id, room.users.get(socket.id) || 'Anonymous');
+        const me = room.users.get(userId);
+        if (!me) return;
+
+        socket.broadcast.to(roomId).emit('new_user', userId, me.name, me.color);
       }),
     );
 
@@ -168,7 +178,7 @@ export const registerSocketHandlers = (
 
         leaveRoom(roomId);
 
-        io.to(roomId).emit('user_disconnected', socket.id);
+        io.to(roomId).emit('user_disconnected', userId);
       }),
     );
 
@@ -178,7 +188,7 @@ export const registerSocketHandlers = (
         const roomId = getRoomId();
         if (!roomId) return;
 
-        if (!(await withinLimit('draw', socket.id))) {
+        if (!(await withinLimit('draw', userId))) {
           throttled('draw');
           return;
         }
@@ -190,19 +200,25 @@ export const registerSocketHandlers = (
           return;
         }
 
-        // The server owns identity and ordering, which is why the payload
-        // schema omits both fields.
-        const finalizedMove = {
-          ...parsed.data,
-          id: v4(),
-          timestamp: Date.now(),
-        };
+        // The store stamps id, timestamp and seq: ordering and identity are
+        // the server's to decide, which is why the payload schema omits them.
+        const result = rooms.addMove(roomId, userId, parsed.data);
+
+        if (result.status === 'duplicate') {
+          // A resend of something already drawn. Echo it back so a client that
+          // retried because it never saw the first reply still converges.
+          logger.debug(
+            { clientId: parsed.data.clientId, userId },
+            'ignored a duplicate move',
+          );
+          return;
+        }
 
         // Only announce a move the server actually kept.
-        if (!rooms.addMove(roomId, socket.id, finalizedMove)) return;
+        if (result.status !== 'stored') return;
 
-        io.to(socket.id).emit('your_move', finalizedMove);
-        socket.broadcast.to(roomId).emit('user_draw', finalizedMove, socket.id);
+        io.to(socket.id).emit('your_move', result.move);
+        socket.broadcast.to(roomId).emit('user_draw', result.move, userId);
       }),
     );
 
@@ -212,9 +228,9 @@ export const registerSocketHandlers = (
         const roomId = getRoomId();
         if (!roomId) return;
 
-        if (!rooms.undoMove(roomId, socket.id)) return;
+        if (!rooms.undoMove(roomId, userId)) return;
 
-        socket.broadcast.to(roomId).emit('user_undo', socket.id);
+        socket.broadcast.to(roomId).emit('user_undo', userId);
       }),
     );
 
@@ -224,7 +240,7 @@ export const registerSocketHandlers = (
         const roomId = getRoomId();
         if (!roomId) return;
 
-        if (!(await withinLimit('mouse_move', socket.id))) return;
+        if (!(await withinLimit('mouse_move', userId))) return;
 
         const parsed = mouseMoveSchema.safeParse({ x, y });
 
@@ -234,7 +250,7 @@ export const registerSocketHandlers = (
 
         socket.broadcast
           .to(roomId)
-          .emit('mouse_moved', parsed.data.x, parsed.data.y, socket.id);
+          .emit('mouse_moved', parsed.data.x, parsed.data.y, userId);
       }),
     );
 
@@ -244,7 +260,7 @@ export const registerSocketHandlers = (
         const roomId = getRoomId();
         if (!roomId) return;
 
-        if (!(await withinLimit('send_msg', socket.id))) {
+        if (!(await withinLimit('send_msg', userId))) {
           throttled('send_msg');
           // The only limit the sender is told about: they typed something and
           // pressed send, so silence would read as a broken app.
@@ -259,21 +275,19 @@ export const registerSocketHandlers = (
           return;
         }
 
-        io.to(roomId).emit('new_msg', socket.id, parsed.data);
+        io.to(roomId).emit('new_msg', userId, parsed.data);
       }),
     );
 
     socket.on(
       'disconnecting',
       safeHandler('disconnecting', () => {
-        forgetSocket(socket.id);
-
         const roomId = getRoomId();
         if (!roomId) return;
 
         leaveRoom(roomId);
 
-        io.to(roomId).emit('user_disconnected', socket.id);
+        io.to(roomId).emit('user_disconnected', userId);
       }),
     );
   });

@@ -1,5 +1,7 @@
 import { useState } from 'react';
 
+import { v4 } from 'uuid';
+
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { getPos } from '@/common/lib/getPos';
@@ -163,6 +165,9 @@ export const useDraw = (blocked: boolean) => {
 
     const move: Move = {
       ...DEFAULT_MOVE,
+      // Identifies this move across a resend, so a retry is recognised by the
+      // server instead of drawn twice.
+      clientId: v4(),
       rect: {
         ...tempSize,
       },

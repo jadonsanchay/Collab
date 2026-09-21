@@ -1,8 +1,8 @@
-import { socket } from '@/common/lib/socket';
+import { getMyUserId } from '@/common/lib/identity';
 import { MessageType } from '@/common/types/global';
 
 const Message = ({ userId, msg, username, color }: MessageType) => {
-  const me = socket.id === userId;
+  const me = getMyUserId() === userId;
 
   return (
     <div

@@ -14,16 +14,21 @@ export type {
   Shape,
 } from '../schemas/move';
 
-export type Room = {
-  usersMoves: Map<string, Move[]>;
-  drawed: Move[];
-  users: Map<string, string>;
-};
-
 export interface User {
   name: string;
   color: string;
 }
+
+/**
+ * The room snapshot as it crosses the wire, keyed by `userId`. The Maps do not
+ * survive the socket encoder, which is why `room` also carries JSON copies of
+ * them; only `drawed` is read off this object directly.
+ */
+export type Room = {
+  usersMoves: Map<string, Move[]>;
+  drawed: Move[];
+  users: Map<string, User>;
+};
 
 export interface ClientRoom {
   id: string;
@@ -41,6 +46,11 @@ export interface MessageType {
   id: number;
 }
 
+/**
+ * Every `userId` below is the stable id from `common/lib/identity.ts`, never a
+ * `socket.id`. The two were interchangeable until Phase 0 Step 6; they are not
+ * any more, because a socket id changes on reconnect and this does not.
+ */
 export interface ServerToClientEvents {
   room_exists: (exists: boolean) => void;
   joined: (roomId: string, failed?: boolean) => void;
@@ -50,7 +60,8 @@ export interface ServerToClientEvents {
   user_draw: (move: Move, userId: string) => void;
   user_undo(userId: string): void;
   mouse_moved: (x: number, y: number, userId: string) => void;
-  new_user: (userId: string, username: string) => void;
+  /** Colour is assigned by the server so every client agrees on it. */
+  new_user: (userId: string, username: string, color: string) => void;
   user_disconnected: (userId: string) => void;
   new_msg: (userId: string, msg: string) => void;
   /**

@@ -13,7 +13,7 @@ import {
 import { MotionValue, useMotionValue } from 'framer-motion';
 import { toast } from 'react-toastify';
 
-import { COLORS_ARRAY } from '@/common/constants/colors';
+import { getMyUserId } from '@/common/lib/identity';
 import { socket } from '@/common/lib/socket';
 import { useSetUsers } from '@/common/recoil/room';
 import { useSetRoom, useRoom } from '@/common/recoil/room/room.hooks';
@@ -66,21 +66,19 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     socket.on('room', (room, usersMovesToParse, usersToParse) => {
       const usersMoves = new Map<string, Move[]>(JSON.parse(usersMovesToParse));
-      const usersParsed = new Map<string, string>(JSON.parse(usersToParse));
+      const usersParsed = new Map<string, User>(JSON.parse(usersToParse));
 
       const newUsers = new Map<string, User>();
 
-      usersParsed.forEach((name, id) => {
-        if (id === socket.id) return;
+      const myUserId = getMyUserId();
 
-        const index = [...usersParsed.keys()].indexOf(id);
+      usersParsed.forEach((user, id) => {
+        // Colours come from the server now. They used to be derived from the
+        // order this client happened to receive users in, so two people could
+        // see the same third person in different colours.
+        if (id === myUserId) return;
 
-        const color = COLORS_ARRAY[index % COLORS_ARRAY.length];
-
-        newUsers.set(id, {
-          name,
-          color,
-        });
+        newUsers.set(id, { name: user.name, color: user.color });
       });
 
       setRoom((prev) => ({
@@ -91,13 +89,13 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       }));
     });
 
-    socket.on('new_user', (userId, username) => {
+    socket.on('new_user', (userId, username, color) => {
       toast(`${username} has joined the room.`, {
         position: 'top-center',
         theme: 'colored',
       });
 
-      handleAddUser(userId, username);
+      handleAddUser(userId, username, color);
     });
 
     socket.on('user_disconnected', (userId) => {

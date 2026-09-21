@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { toast } from 'react-toastify';
 
+import { v4 } from 'uuid';
+
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { isCopy, isDelete, isTypingTarget } from '@/common/lib/keyboard';
 import { socket } from '@/common/lib/socket';
@@ -171,6 +173,9 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
 
     const move: Move = {
       ...DEFAULT_MOVE,
+      // Identifies this move across a resend, so a retry is recognised by the
+      // server instead of drawn twice.
+      clientId: v4(),
       rect: {
         width,
         height,

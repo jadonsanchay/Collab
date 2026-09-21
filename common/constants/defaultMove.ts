@@ -25,4 +25,8 @@ export const DEFAULT_MOVE: Move = {
     base64: '',
   },
   timestamp: 0,
+  // Placeholders, like id and timestamp above. The server assigns seq; the
+  // client sets a real clientId at the moment it sends the move.
+  seq: 0,
+  clientId: '',
 };

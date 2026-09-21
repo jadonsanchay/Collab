@@ -67,14 +67,29 @@ export const moveSchema = z.object({
   options: ctxOptionsSchema,
   timestamp: z.number(),
   id: z.string(),
+  /**
+   * Server-assigned, monotonic within a room. Clients order by this instead of
+   * by `timestamp`, which came from `Date.now()` on whichever machine drew and
+   * so could order overlapping strokes differently on different screens. Zero
+   * means the move has not been through the server yet.
+   */
+  seq: z.number().int().nonnegative(),
+  /**
+   * Client-generated, so a move resent after a flaky delivery is recognised
+   * rather than drawn twice.
+   */
+  clientId: z.string(),
 });
 
 /**
- * What a client may send on `draw`. The server assigns `id` and `timestamp`,
- * and omitting them here means a client cannot forge either — `z.object`
- * strips unknown keys, so the fields the client does send are discarded.
+ * What a client may send on `draw`. The server assigns `id`, `timestamp` and
+ * `seq`; omitting them here means a client cannot forge any of them, since
+ * `z.object` strips unknown keys. `clientId` is the exception: it has to come
+ * from the client, because it is what makes a retry recognisable.
  */
-export const drawPayloadSchema = moveSchema.omit({ id: true, timestamp: true });
+export const drawPayloadSchema = moveSchema
+  .omit({ id: true, timestamp: true, seq: true })
+  .extend({ clientId: z.string().uuid() });
 
 export type Shape = z.infer<typeof shapeSchema>;
 export type CtxMode = z.infer<typeof ctxModeSchema>;
