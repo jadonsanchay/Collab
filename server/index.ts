@@ -1,165 +1,18 @@
-import { createServer } from 'http';
-import express from 'express';
-import next from 'next'; // ❗ removed `NextApiHandler`
-import { Server } from 'socket.io';
-import { v4 } from 'uuid';
+import next from 'next';
 
-import {
-  ClientToServerEvents,
-  Move,
-  Room,
-  ServerToClientEvents,
-} from '@/common/types/global';
+import { createAppServer } from './app';
+import { logger } from './logger';
 
 const port = parseInt(process.env.PORT || '3000', 10);
 const dev = process.env.NODE_ENV !== 'production';
-const nextApp = next({ dev });
 
-// ❗ Removed the incorrect type: NextApiHandler is only for Next.js API routes
+const nextApp = next({ dev });
 const nextHandler = nextApp.getRequestHandler();
 
-nextApp.prepare().then(async () => {
-  const app = express();
-  const server = createServer(app);
-
-  const io = new Server<ClientToServerEvents, ServerToClientEvents>(server);
-
-  app.get('/hello', async (_, res) => {
-    res.send('Hello World');
-  });
-
-  const rooms = new Map<string, Room>();
-
-  // Assumes the room and this socket's entry already exist — every code path that
-  // calls addMove/undoMove only runs after join_room/create_room has initialized both.
-  const addMove = (roomId: string, socketId: string, move: Move) => {
-    const room = rooms.get(roomId)!;
-
-    if (!room.users.has(socketId)) {
-      room.usersMoves.set(socketId, [move]);
-    }
-
-    room.usersMoves.get(socketId)!.push(move);
-  };
-
-  const undoMove = (roomId: string, socketId: string) => {
-    const room = rooms.get(roomId)!;
-    room.usersMoves.get(socketId)!.pop();
-  };
-
-  io.on('connection', (socket) => {
-    const getRoomId = () => {
-      const joinedRoom = [...socket.rooms].find((room) => room !== socket.id);
-      return joinedRoom || socket.id;
-    };
-
-    const leaveRoom = (roomId: string, socketId: string) => {
-      const room = rooms.get(roomId);
-      if (!room) return;
-
-      const userMoves = room.usersMoves.get(socketId);
-      if (userMoves) room.drawed.push(...userMoves);
-      room.users.delete(socketId);
-
-      socket.leave(roomId);
-    };
-
-    socket.on('create_room', (username) => {
-      let roomId: string;
-      do {
-        roomId = Math.random().toString(36).substring(2, 6);
-      } while (rooms.has(roomId));
-
-      socket.join(roomId);
-
-      rooms.set(roomId, {
-        usersMoves: new Map([[socket.id, []]]),
-        drawed: [],
-        users: new Map([[socket.id, username]]),
-      });
-
-      io.to(socket.id).emit('created', roomId);
-    });
-
-    socket.on('check_room', (roomId) => {
-      socket.emit('room_exists', rooms.has(roomId));
-    });
-
-    socket.on('join_room', (roomId, username) => {
-      const room = rooms.get(roomId);
-
-      if (room && room.users.size < 12) {
-        socket.join(roomId);
-        room.users.set(socket.id, username);
-        room.usersMoves.set(socket.id, []);
-
-        io.to(socket.id).emit('joined', roomId);
-      } else {
-        io.to(socket.id).emit('joined', '', true);
-      }
-    });
-
-    socket.on('joined_room', () => {
-      const roomId = getRoomId();
-      const room = rooms.get(roomId);
-      if (!room) return;
-
-      io.to(socket.id).emit(
-        'room',
-        room,
-        JSON.stringify([...room.usersMoves]),
-        JSON.stringify([...room.users]),
-      );
-
-      socket.broadcast
-        .to(roomId)
-        .emit('new_user', socket.id, room.users.get(socket.id) || 'Anonymous');
-    });
-
-    socket.on('leave_room', () => {
-      const roomId = getRoomId();
-      leaveRoom(roomId, socket.id);
-
-      io.to(roomId).emit('user_disconnected', socket.id);
-    });
-
-    socket.on('draw', (move) => {
-      const roomId = getRoomId();
-      const finalizedMove = { ...move, id: v4(), timestamp: Date.now() };
-
-      addMove(roomId, socket.id, finalizedMove);
-
-      io.to(socket.id).emit('your_move', finalizedMove);
-      socket.broadcast.to(roomId).emit('user_draw', finalizedMove, socket.id);
-    });
-
-    socket.on('undo', () => {
-      const roomId = getRoomId();
-      undoMove(roomId, socket.id);
-
-      socket.broadcast.to(roomId).emit('user_undo', socket.id);
-    });
-
-    socket.on('mouse_move', (x, y) => {
-      socket.broadcast.to(getRoomId()).emit('mouse_moved', x, y, socket.id);
-    });
-
-    socket.on('send_msg', (msg) => {
-      io.to(getRoomId()).emit('new_msg', socket.id, msg);
-    });
-
-    socket.on('disconnecting', () => {
-      const roomId = getRoomId();
-      leaveRoom(roomId, socket.id);
-
-      io.to(roomId).emit('user_disconnected', socket.id);
-    });
-  });
-
-  // This will handle all other Next.js routes (pages, assets, etc.)
-  app.all('*', (req, res) => nextHandler(req, res));
+nextApp.prepare().then(() => {
+  const { server } = createAppServer({ nextHandler });
 
   server.listen(port, () => {
-    console.log(`> Ready on http://localhost:${port}`);
+    logger.info({ port, dev }, `Ready on http://localhost:${port}`);
   });
 });

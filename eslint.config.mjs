@@ -49,11 +49,12 @@ const eslintConfig = [
     },
   },
   {
-    // Server has no logging library yet (tracked separately) — console is the
-    // only startup/error output available, so allow it here specifically.
-    files: ['server/**/*.ts'],
+    // Tooling config and shared test helpers legitimately import
+    // devDependencies. Airbnb's allowlist already covers `*.test.ts`, but not
+    // root config files or the fixtures the tests share.
+    files: ['*.config.ts', 'server/testing/**/*.ts'],
     rules: {
-      'no-console': 'off',
+      'import/no-extraneous-dependencies': ['error', { devDependencies: true }],
     },
   },
   {
