@@ -64,7 +64,9 @@ npm install
 npm run dev
 ```
 
-This starts the custom server (`server/index.ts` via nodemon/ts-node) on `http://localhost:3000` — **not** `next dev`. Both the Next.js app and the Socket.IO server run on this one process/port.
+This starts the custom server (`server/index.ts` via `tsx watch`) on `http://localhost:3000` — **not** `next dev`. Both the Next.js app and the Socket.IO server run on this one process/port.
+
+Node 22 is expected (see `.nvmrc`).
 
 ### Environment variables
 
@@ -77,15 +79,22 @@ There is no `.env` requirement beyond these — no database or third-party API k
 
 ## Scripts
 
-| Script                 | What it does                                                                                                                       |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run dev`          | Runs `server/index.ts` directly via `nodemon` (auto-restarts on server changes; Next.js's own fast-refresh still applies to pages) |
-| `npm run dev:client`   | Runs `server/index.ts` once via `ts-node` (no watch)                                                                               |
-| `npm run build:server` | Compiles `server/` to `build/` via `tsc --project tsconfig.server.json`                                                            |
-| `npm run build:next`   | Runs `next build`                                                                                                                  |
-| `npm run build`        | Runs both of the above, in order — required before `npm start`                                                                     |
-| `npm start`            | `NODE_ENV=production node build/index.js` — serves the compiled server + built Next.js app                                         |
-| `npm run lint`         | `next lint`                                                                                                                        |
+| Script                 | What it does                                                                                                                        |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run dev`          | Runs `server/index.ts` via `tsx watch` (auto-restarts on server changes; Next.js's own fast-refresh still applies to pages)         |
+| `npm run build:server` | Bundles `server/index.ts` to `build/index.js` via `tsup`                                                                            |
+| `npm run build:next`   | Runs `next build`                                                                                                                   |
+| `npm run build`        | Runs both of the above, in order — required before `npm start`                                                                      |
+| `npm start`            | `NODE_ENV=production node build/index.js` — serves the bundled server + built Next.js app                                           |
+| `npm run lint`         | `eslint .`                                                                                                                          |
+| `npm run typecheck`    | `tsc --noEmit`                                                                                                                      |
+| `npm test`             | `vitest run` — unit, socket integration, and fuzz tests                                                                             |
+| `npm run test:watch`   | `vitest` in watch mode                                                                                                              |
+
+The server is **bundled** rather than compiled file-by-file, because it imports
+runtime code from `common/` (the Zod schemas) through the `@/*` alias. `tsc`
+emits such an import verbatim as `require("@/common/...")`, which Node cannot
+resolve; esbuild inlines it instead. Dependencies stay external.
 
 ## Deployment
 
@@ -96,7 +105,7 @@ Because Collab runs a **custom, long-lived Node server** (Express + Socket.IO) r
 To deploy anywhere that runs a Node process:
 
 1. `npm install`
-2. `npm run build` (compiles the server to `build/` and builds the Next.js app)
+2. `npm run build` (bundles the server to `build/index.js` and builds the Next.js app)
 3. `npm start` (or configure the platform's start command to run the same: `NODE_ENV=production node build/index.js`)
 4. Ensure the platform exposes the port from `process.env.PORT` and proxies WebSocket upgrades through to it
 

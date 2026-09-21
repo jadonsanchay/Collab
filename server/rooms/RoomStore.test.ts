@@ -1,9 +1,27 @@
+import { randomBytes } from 'crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { ROOM_ID_LENGTH, roomIdSchema } from '@/common/schemas/user';
 
 import { makeMove } from '../testing/fixtures';
 import { MAX_ROOM_USERS, RoomStore } from './RoomStore';
 
+// Only `randomBytes` is replaced, and only so the collision retry below can be
+// driven deliberately. Every other test uses the real generator.
+vi.mock('crypto', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('crypto')>();
+
+  return { ...actual, randomBytes: vi.fn(actual.randomBytes) };
+});
+
+// `randomBytes` is overloaded, and `vi.mocked` picks the callback overload
+// that returns void, so the synchronous one is selected explicitly here.
+const randomBytesMock = vi.mocked(randomBytes as (size: number) => Buffer);
+
 afterEach(() => {
+  // Vitest resets to the implementation `vi.fn` was created with, which is the
+  // real `randomBytes`.
+  randomBytesMock.mockReset();
   vi.restoreAllMocks();
 });
 
@@ -20,26 +38,40 @@ describe('RoomStore.create', () => {
     expect(room?.drawed).toEqual([]);
   });
 
-  it('generates a 4-character base36 id', () => {
+  it('generates an 8-character base64url id', () => {
     const store = new RoomStore();
-    // Pinned so the assertion does not depend on how many base36 digits a real
-    // random float happens to produce.
-    vi.spyOn(Math, 'random').mockReturnValue(0.123456789);
 
     const roomId = store.create('socket-a', 'Alice');
 
-    expect(roomId).toHaveLength(4);
-    expect(roomId).toMatch(/^[0-9a-z]{4}$/);
+    expect(roomId).toHaveLength(ROOM_ID_LENGTH);
+    expect(roomId).toMatch(/^[A-Za-z0-9_-]{8}$/);
+    // The id has to satisfy the schema the server validates incoming ids
+    // against, or a room would be unjoinable the moment it is created.
+    expect(roomIdSchema.safeParse(roomId).success).toBe(true);
+  });
+
+  it('generates distinct ids', () => {
+    const store = new RoomStore();
+
+    const ids = new Set(
+      Array.from({ length: 500 }, (_, i) => store.create(`socket-${i}`, 'User')),
+    );
+
+    expect(ids.size).toBe(500);
   });
 
   it('retries when the generated id collides with an existing room', () => {
     const store = new RoomStore();
-    // Same value twice, so the second create must loop once before landing on
-    // the third, different value.
-    vi.spyOn(Math, 'random')
-      .mockReturnValueOnce(0.5)
-      .mockReturnValueOnce(0.5)
-      .mockReturnValueOnce(0.25);
+    const collision = Buffer.from([1, 2, 3, 4, 5, 6]);
+    const resolution = Buffer.from([9, 9, 9, 9, 9, 9]);
+    // Same bytes twice, so the second create has to loop once before landing
+    // on the third, different value. Unreachable in practice with 48 bits of
+    // entropy, but the retry is the only thing standing between a collision
+    // and one room silently replacing another.
+    randomBytesMock
+      .mockReturnValueOnce(collision)
+      .mockReturnValueOnce(collision)
+      .mockReturnValueOnce(resolution);
 
     const first = store.create('socket-a', 'Alice');
     const second = store.create('socket-b', 'Bob');

@@ -12,6 +12,11 @@ import {
   vi,
 } from 'vitest';
 
+import {
+  MAX_IMAGE_BASE64_LENGTH,
+  MAX_PATH_POINTS,
+} from '@/common/schemas/move';
+import { ROOM_ID_LENGTH } from '@/common/schemas/user';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
@@ -130,7 +135,7 @@ describe('socket handlers', () => {
     alice.emit('create_room', 'Alice');
     [roomId] = await created;
 
-    expect(roomId).toHaveLength(4);
+    expect(roomId).toHaveLength(ROOM_ID_LENGTH);
 
     const exists = waitFor(alice, 'room_exists');
     alice.emit('check_room', roomId);
@@ -140,7 +145,7 @@ describe('socket handlers', () => {
 
   it('reports a room that does not exist', async () => {
     const exists = waitFor(alice, 'room_exists');
-    alice.emit('check_room', 'zzzz');
+    alice.emit('check_room', 'aaaaaaaa');
 
     await expect(exists).resolves.toEqual([false]);
   });
@@ -173,11 +178,11 @@ describe('socket handlers', () => {
 
     try {
       const joined = waitFor(stranger, 'joined');
-      stranger.emit('join_room', 'zzzz', 'Stranger');
+      stranger.emit('join_room', 'aaaaaaaa', 'Stranger');
 
       // The id comes back so the client's modal can name the room it failed to
       // join, rather than quoting an empty string.
-      await expect(joined).resolves.toEqual(['zzzz', true]);
+      await expect(joined).resolves.toEqual(['aaaaaaaa', true]);
     } finally {
       stranger.disconnect();
     }
@@ -302,6 +307,111 @@ describe('socket handlers', () => {
 
     await expect(disconnected).resolves.toEqual([leavingId]);
     expect(rooms.get(roomId)?.users.has(leavingId)).toBe(false);
+  });
+
+  describe('payload validation', () => {
+    it('drops an oversized image but keeps an ordinary one', async () => {
+      const storedBefore =
+        rooms.get(roomId)?.usersMoves.get(alice.id as string)?.length ?? 0;
+
+      alice.emit(
+        'draw',
+        makeMove({
+          options: { ...makeMove().options, shape: 'image' },
+          img: { base64: 'x'.repeat(MAX_IMAGE_BASE64_LENGTH + 1) },
+        }),
+      );
+
+      await expectNoEvent(alice, 'your_move');
+      expect(
+        rooms.get(roomId)?.usersMoves.get(alice.id as string),
+      ).toHaveLength(storedBefore);
+
+      // The same move within the cap goes through, so the rejection was the
+      // size and not the shape.
+      const accepted = waitFor(alice, 'your_move');
+      alice.emit(
+        'draw',
+        makeMove({
+          options: { ...makeMove().options, shape: 'image' },
+          img: { base64: 'x'.repeat(1024) },
+        }),
+      );
+
+      await expect(accepted).resolves.toHaveLength(1);
+      expect(
+        rooms.get(roomId)?.usersMoves.get(alice.id as string),
+      ).toHaveLength(storedBefore + 1);
+    });
+
+    it('drops a path longer than the cap', async () => {
+      alice.emit(
+        'draw',
+        makeMove({
+          path: Array.from(
+            { length: MAX_PATH_POINTS + 1 },
+            () => [0, 0] as [number, number],
+          ),
+        }),
+      );
+
+      await expectNoEvent(alice, 'your_move');
+    });
+
+    it('assigns its own id and timestamp, ignoring the ones sent', async () => {
+      const yourMove = waitFor(alice, 'your_move');
+      alice.emit('draw', makeMove({ id: 'forged', timestamp: 1 }));
+      const [echoed] = await yourMove;
+
+      expect(echoed.id).not.toBe('forged');
+      expect(echoed.timestamp).toBeGreaterThan(1);
+    });
+
+    it('drops a chat message that is empty once trimmed', async () => {
+      alice.emit('send_msg', '   ');
+
+      await expectNoEvent(alice, 'new_msg');
+    });
+
+    it('trims and forwards an ordinary chat message', async () => {
+      const received = waitFor(bob, 'new_msg');
+      alice.emit('send_msg', '  hello  ');
+
+      await expect(received).resolves.toEqual([alice.id, 'hello']);
+    });
+
+    it('refuses to create a room for an unusable name', async () => {
+      const nameless = await connect();
+
+      try {
+        nameless.emit('create_room', '   ');
+
+        await expectNoEvent(nameless, 'created');
+      } finally {
+        nameless.disconnect();
+      }
+    });
+
+    it('answers check_room for a malformed id instead of going silent', async () => {
+      // A client waiting on this reply would otherwise sit on a spinner.
+      const exists = waitFor(alice, 'room_exists');
+      alice.emit('check_room', 'not a room id');
+
+      await expect(exists).resolves.toEqual([false]);
+    });
+
+    it('echoes a malformed room id back on a failed join', async () => {
+      const stranger = await connect();
+
+      try {
+        const joined = waitFor(stranger, 'joined');
+        stranger.emit('join_room', 'nope', 'Stranger');
+
+        await expect(joined).resolves.toEqual(['nope', true]);
+      } finally {
+        stranger.disconnect();
+      }
+    });
   });
 
   // Before Step 2, `getRoomId` fell back to the socket's own id, so these

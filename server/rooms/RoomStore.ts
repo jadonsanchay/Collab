@@ -1,3 +1,5 @@
+import { randomBytes } from 'crypto';
+
 import type { Move } from '@/common/types/global';
 
 import type { ServerRoom } from './types';
@@ -24,11 +26,17 @@ export class RoomStore {
     return this.rooms.get(roomId);
   }
 
-  /** Creates a room owned by `socketId` and returns its generated id. */
+  /**
+   * Creates a room owned by `socketId` and returns its generated id.
+   *
+   * Six random bytes give 8 base64url characters. The previous 4-character
+   * `Math.random` id had ~1.7 million combinations, which is small enough to
+   * enumerate, so strangers could find their way into a board.
+   */
   create(socketId: string, username: string): string {
     let roomId: string;
     do {
-      roomId = Math.random().toString(36).substring(2, 6);
+      roomId = randomBytes(6).toString('base64url');
     } while (this.rooms.has(roomId));
 
     this.rooms.set(roomId, {

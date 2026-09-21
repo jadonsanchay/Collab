@@ -1,24 +1,55 @@
 import type { Server } from 'socket.io';
 import { v4 } from 'uuid';
 
+import {
+  checkRoomSchema,
+  createRoomSchema,
+  drawSchema,
+  joinRoomSchema,
+  mouseMoveSchema,
+  sendMsgSchema,
+} from '@/common/schemas/events';
 import type {
   ClientToServerEvents,
   ServerToClientEvents,
 } from '@/common/types/global';
 
+import { logger } from '../logger';
 import type { RoomStore } from '../rooms/RoomStore';
 import { safeHandler } from './safeHandler';
 
+/** The `error` half of a Zod `safeParse` result, narrowed to what is logged. */
+type ParseFailure = { issues: { path: PropertyKey[]; message: string }[] };
+
 /**
- * Registers every socket event. Each handler is wrapped by `safeHandler` and
- * returns early when the socket is not in a room, so no client message can
- * reach room state that does not exist.
+ * Registers every socket event. Each handler is wrapped by `safeHandler`,
+ * returns early when the socket is not in a room, and validates its payload
+ * before touching room state.
+ *
+ * Invalid payloads are dropped rather than answered with an error, with two
+ * deliberate exceptions: `check_room` and `join_room` are questions the client
+ * is waiting on, so a malformed id gets the negative answer instead of
+ * silence. Dropping those would leave the client on a spinner forever.
  */
 export const registerSocketHandlers = (
   io: Server<ClientToServerEvents, ServerToClientEvents>,
   rooms: RoomStore,
 ) => {
   io.on('connection', (socket) => {
+    const dropped = (event: string, error: ParseFailure) => {
+      logger.warn(
+        {
+          event,
+          socketId: socket.id,
+          issues: error.issues.map(({ path, message }) => ({
+            path: path.join('.'),
+            message,
+          })),
+        },
+        'dropped invalid payload',
+      );
+    };
+
     /**
      * The room this socket has joined, or undefined when it has joined none.
      * Socket.IO puts every socket in a room named after its own id, which is
@@ -35,7 +66,15 @@ export const registerSocketHandlers = (
     socket.on(
       'create_room',
       safeHandler('create_room', (username) => {
-        const roomId = rooms.create(socket.id, username);
+        const parsed = createRoomSchema.safeParse(username);
+
+        if (!parsed.success) {
+          dropped('create_room', parsed.error);
+          return;
+        }
+
+        // parsed.data is the sanitized name: trimmed, control characters gone.
+        const roomId = rooms.create(socket.id, parsed.data);
 
         socket.join(roomId);
 
@@ -46,21 +85,38 @@ export const registerSocketHandlers = (
     socket.on(
       'check_room',
       safeHandler('check_room', (roomId) => {
-        socket.emit('room_exists', rooms.has(roomId));
+        const parsed = checkRoomSchema.safeParse(roomId);
+
+        // An id that cannot exist does not exist. Answering keeps the client
+        // moving instead of waiting on a reply that never comes.
+        socket.emit('room_exists', parsed.success && rooms.has(parsed.data));
       }),
     );
 
     socket.on(
       'join_room',
       safeHandler('join_room', (roomId, username) => {
-        if (rooms.join(roomId, socket.id, username)) {
-          socket.join(roomId);
+        const parsed = joinRoomSchema.safeParse({ roomId, username });
 
-          io.to(socket.id).emit('joined', roomId);
+        if (!parsed.success) {
+          dropped('join_room', parsed.error);
+
+          // Echo back what the client asked for, so its modal can name the
+          // room even when the request was malformed.
+          io.to(socket.id).emit(
+            'joined',
+            typeof roomId === 'string' ? roomId : '',
+            true,
+          );
+          return;
+        }
+
+        if (rooms.join(parsed.data.roomId, socket.id, parsed.data.username)) {
+          socket.join(parsed.data.roomId);
+
+          io.to(socket.id).emit('joined', parsed.data.roomId);
         } else {
-          // Echo the attempted id back so the client's modal can name the room
-          // it could not get into.
-          io.to(socket.id).emit('joined', roomId, true);
+          io.to(socket.id).emit('joined', parsed.data.roomId, true);
         }
       }),
     );
@@ -105,7 +161,20 @@ export const registerSocketHandlers = (
         const roomId = getRoomId();
         if (!roomId) return;
 
-        const finalizedMove = { ...move, id: v4(), timestamp: Date.now() };
+        const parsed = drawSchema.safeParse(move);
+
+        if (!parsed.success) {
+          dropped('draw', parsed.error);
+          return;
+        }
+
+        // The server owns identity and ordering, which is why the payload
+        // schema omits both fields.
+        const finalizedMove = {
+          ...parsed.data,
+          id: v4(),
+          timestamp: Date.now(),
+        };
 
         // Only announce a move the server actually kept.
         if (!rooms.addMove(roomId, socket.id, finalizedMove)) return;
@@ -133,7 +202,15 @@ export const registerSocketHandlers = (
         const roomId = getRoomId();
         if (!roomId) return;
 
-        socket.broadcast.to(roomId).emit('mouse_moved', x, y, socket.id);
+        const parsed = mouseMoveSchema.safeParse({ x, y });
+
+        // Deliberately quiet: cursor updates arrive many times a second, and a
+        // warn per bad packet would drown the log.
+        if (!parsed.success) return;
+
+        socket.broadcast
+          .to(roomId)
+          .emit('mouse_moved', parsed.data.x, parsed.data.y, socket.id);
       }),
     );
 
@@ -143,7 +220,14 @@ export const registerSocketHandlers = (
         const roomId = getRoomId();
         if (!roomId) return;
 
-        io.to(roomId).emit('new_msg', socket.id, msg);
+        const parsed = sendMsgSchema.safeParse(msg);
+
+        if (!parsed.success) {
+          dropped('send_msg', parsed.error);
+          return;
+        }
+
+        io.to(roomId).emit('new_msg', socket.id, parsed.data);
       }),
     );
 

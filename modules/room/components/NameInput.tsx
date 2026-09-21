@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/recoil/room';
+import { MAX_USERNAME_LENGTH, usernameSchema } from '@/common/schemas/user';
 import NotFoundModal from '@/modules/home/modals/NotFound';
 import { useModal } from '@/modules/modal';
 
@@ -47,10 +48,16 @@ const NameInput = () => {
     };
   }, [openModal, router, setRoomId]);
 
+  // Same schema the server validates with, so an unusable name is a disabled
+  // button here rather than a dropped event there.
+  const parsedName = usernameSchema.safeParse(name);
+
   const handleJoinRoom = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    socket.emit('join_room', roomId, name);
+    if (!parsedName.success) return;
+
+    socket.emit('join_room', roomId, parsedName.data);
   };
 
   return (
@@ -72,11 +79,16 @@ const NameInput = () => {
           id="username"
           placeholder="Username..."
           value={name}
-          onChange={(e) => setName(e.target.value.slice(0, 15))}
+          maxLength={MAX_USERNAME_LENGTH}
+          onChange={(e) => setName(e.target.value)}
         />
       </label>
 
-      <button className="btn" type="submit">
+      <button
+        className="btn disabled:cursor-not-allowed disabled:opacity-40"
+        type="submit"
+        disabled={!parsedName.success}
+      >
         Enter room
       </button>
     </form>

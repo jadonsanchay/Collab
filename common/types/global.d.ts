@@ -1,41 +1,18 @@
-import { RgbaColor } from 'react-colorful';
+import type { Move } from '../schemas/move';
 
-export type Shape = 'line' | 'circle' | 'rect' | 'image';
-export type CtxMode = 'eraser' | 'draw' | 'select';
-
-export interface CtxOptions {
-  lineWidth: number;
-  lineColor: RgbaColor;
-  fillColor: RgbaColor;
-  shape: Shape;
-  mode: CtxMode;
-  selection: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
-}
-
-export interface Move {
-  circle: {
-    cX: number;
-    cY: number;
-    radiusX: number;
-    radiusY: number;
-  };
-  rect: {
-    width: number;
-    height: number;
-  };
-  img: {
-    base64: string;
-  };
-  path: [number, number][];
-  options: CtxOptions;
-  timestamp: number;
-  id: string;
-}
+/**
+ * The drawing types are derived from the Zod schemas in `common/schemas/` so
+ * that the validated wire shape and the compile-time type cannot drift apart.
+ * They are re-exported from here because this module is what the whole app
+ * imports; the schemas are the definition.
+ */
+export type {
+  CtxMode,
+  CtxOptions,
+  DrawPayload,
+  Move,
+  Shape,
+} from '../schemas/move';
 
 export type Room = {
   usersMoves: Map<string, Move[]>;

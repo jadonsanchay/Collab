@@ -4,6 +4,12 @@ import { useRouter } from 'next/router';
 
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/recoil/room';
+import {
+  MAX_USERNAME_LENGTH,
+  ROOM_ID_LENGTH,
+  roomIdSchema,
+  usernameSchema,
+} from '@/common/schemas/user';
 import { useModal } from '@/modules/modal';
 
 import NotFoundModal from '../modals/NotFound';
@@ -49,14 +55,24 @@ const Home = () => {
     setAtomRoomId('');
   }, [setAtomRoomId]);
 
+  // The server validates against these same schemas and drops what fails, so
+  // validating here is what makes a bad name or id a disabled button instead
+  // of a button that appears to do nothing.
+  const parsedUsername = usernameSchema.safeParse(username);
+  const parsedRoomId = roomIdSchema.safeParse(roomId);
+
   const handleCreateRoom = () => {
-    socket.emit('create_room', username);
+    if (!parsedUsername.success) return;
+
+    socket.emit('create_room', parsedUsername.data);
   };
 
   const handleJoinRoom = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    if (roomId) socket.emit('join_room', roomId, username);
+    if (!parsedUsername.success || !parsedRoomId.success) return;
+
+    socket.emit('join_room', parsedRoomId.data, parsedUsername.data);
   };
 
   return (
@@ -75,7 +91,8 @@ const Home = () => {
           id="username"
           placeholder="Username..."
           value={username}
-          onChange={(e) => setUsername(e.target.value.slice(0, 15))}
+          maxLength={MAX_USERNAME_LENGTH}
+          onChange={(e) => setUsername(e.target.value)}
         />
       </label>
 
@@ -94,10 +111,15 @@ const Home = () => {
             id="room-id"
             placeholder="Room id..."
             value={roomId}
+            maxLength={ROOM_ID_LENGTH}
             onChange={(e) => setRoomId(e.target.value)}
           />
         </label>
-        <button className="btn" type="submit">
+        <button
+          className="btn disabled:cursor-not-allowed disabled:opacity-40"
+          type="submit"
+          disabled={!parsedUsername.success || !parsedRoomId.success}
+        >
           Join
         </button>
       </form>
@@ -111,7 +133,12 @@ const Home = () => {
       <div className="flex flex-col items-center gap-2">
         <h5 className="self-start font-bold leading-tight">Create new room</h5>
 
-        <button type="button" className="btn" onClick={handleCreateRoom}>
+        <button
+          type="button"
+          className="btn disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={handleCreateRoom}
+          disabled={!parsedUsername.success}
+        >
           Create
         </button>
       </div>

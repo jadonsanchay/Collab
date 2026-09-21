@@ -3,9 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "nodemon server/index.ts",
-    "dev:client": "ts-node server/index.ts",
-    "build:server": "tsc --project tsconfig.server.json",
+    "dev": "tsx watch server/index.ts",
+    "build:server": "tsup",
     "build:next": "next build",
     "build": "npm run build:server && npm run build:next",
     "start": "NODE_ENV=production node build/index.js",
@@ -29,12 +28,13 @@
     "recoil": "^0.7.6",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.6",
     "@types/express": "^5.0.0",
-    "@types/node": "^20.17.19",
+    "@types/node": "^22.20.4",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@types/uuid": "^10.0.0",
@@ -56,6 +56,8 @@
     "prettier": "^3.5.1",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "tailwindcss": "^3.4.17",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.3",
     "vitest": "^5.0.1"
   }
