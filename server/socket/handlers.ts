@@ -3,6 +3,7 @@ import type { Server } from 'socket.io';
 import {
   checkRoomSchema,
   createRoomSchema,
+  cursorSchema,
   drawSchema,
   joinRoomSchema,
   mouseMoveSchema,
@@ -11,6 +12,7 @@ import {
   strokeEndSchema,
   strokePointsSchema,
   strokeStartSchema,
+  viewportSchema,
 } from '@/common/schemas/events';
 import type {
   ClientToServerEvents,
@@ -363,6 +365,64 @@ export const registerSocketHandlers = (
         socket.broadcast
           .to(roomId)
           .emit('mouse_moved', parsed.data.x, parsed.data.y, userId);
+      }),
+    );
+
+    socket.on(
+      'cursor',
+      safeHandler('cursor', async (x, y) => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        if (!(await withinLimit('cursor', userId))) return;
+
+        const parsed = cursorSchema.safeParse({ x, y });
+
+        // Deliberately quiet: this arrives many times a second, and a warn
+        // per bad packet would drown the log.
+        if (!parsed.success) return;
+
+        socket.broadcast
+          .to(roomId)
+          .volatile.emit('cursor_moved', userId, parsed.data.x, parsed.data.y);
+      }),
+    );
+
+    socket.on(
+      'viewport',
+      safeHandler('viewport', async (x, y, scale) => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        if (!(await withinLimit('viewport', userId))) return;
+
+        const parsed = viewportSchema.safeParse({ x, y, scale });
+        if (!parsed.success) return;
+
+        socket.broadcast
+          .to(roomId)
+          .volatile.emit(
+            'viewport_changed',
+            userId,
+            parsed.data.x,
+            parsed.data.y,
+            parsed.data.scale,
+          );
+      }),
+    );
+
+    socket.on(
+      'summon',
+      safeHandler('summon', async () => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        if (!(await withinLimit('summon', userId))) {
+          throttled('summon');
+          return;
+        }
+
+        socket.broadcast.to(roomId).emit('summoned', userId);
       }),
     );
 

@@ -7,7 +7,10 @@ import { toBoard } from '@/common/lib/coords';
 import { socket } from '@/common/lib/socket';
 import { useViewportStore } from '@/common/store/viewport.store';
 
-const MousePosition = () => {
+/** Matches the server's 30-per-second `cursor` budget. */
+const BROADCAST_INTERVAL_MS = 33;
+
+const CursorBroadcaster = () => {
   const x = useViewportStore((state) => state.x);
   const y = useViewportStore((state) => state.y);
   const scale = useViewportStore((state) => state.scale);
@@ -25,10 +28,10 @@ const MousePosition = () => {
       (prevPosition.current.x !== docX || prevPosition.current.y !== docY) &&
       !touchDevice
     ) {
-      socket.emit('mouse_move', toBoard(docX, x, scale), toBoard(docY, y, scale));
+      socket.emit('cursor', toBoard(docX, x, scale), toBoard(docY, y, scale));
       prevPosition.current = { x: docX, y: docY };
     }
-  }, 150);
+  }, BROADCAST_INTERVAL_MS);
 
   if (touchDevice) return null;
 
@@ -44,4 +47,4 @@ const MousePosition = () => {
   );
 };
 
-export default MousePosition;
+export default CursorBroadcaster;

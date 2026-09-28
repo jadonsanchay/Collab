@@ -63,3 +63,14 @@ export const strokePointsSchema = z.object({
 export const strokeEndSchema = z.object({
   strokeId: strokeIdSchema,
 });
+
+export const cursorSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+});
+
+export const viewportSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  scale: z.number().positive(),
+});

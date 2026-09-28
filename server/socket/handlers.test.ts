@@ -335,6 +335,24 @@ describe('socket handlers', () => {
     await expectNoEvent(alice, 'live_stroke_start');
   });
 
+  it('broadcasts cursor and viewport updates to others only', async () => {
+    const cursorMoved = waitFor(bob, 'cursor_moved');
+    alice.emit('cursor', 5, 6);
+    await expect(cursorMoved).resolves.toEqual([alice.userId, 5, 6]);
+
+    const viewportChanged = waitFor(bob, 'viewport_changed');
+    alice.emit('viewport', 10, 20, 1.5);
+    await expect(viewportChanged).resolves.toEqual([alice.userId, 10, 20, 1.5]);
+  });
+
+  it('broadcasts a summon to everyone else, not the sender', async () => {
+    const summoned = waitFor(bob, 'summoned');
+    alice.emit('summon');
+
+    await expect(summoned).resolves.toEqual([alice.userId]);
+    await expectNoEvent(alice, 'summoned');
+  });
+
   it('keeps the moves of a user who leaves, and tells the room', async () => {
     const departing = await connect();
     const joined = waitFor(departing, 'joined');

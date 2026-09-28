@@ -104,6 +104,11 @@ export interface ServerToClientEvents {
   ) => void;
   live_stroke_points: (userId: string, strokeId: string, points: Point[]) => void;
   live_stroke_end: (userId: string, strokeId: string) => void;
+  /** Volatile presence broadcasts: a dropped packet just means one skipped frame. */
+  cursor_moved: (userId: string, x: number, y: number) => void;
+  viewport_changed: (userId: string, x: number, y: number, scale: number) => void;
+  /** Asks everyone else to bring their viewport to the sender's. */
+  summoned: (byUserId: string) => void;
 }
 
 export interface ClientToServerEvents {
@@ -128,4 +133,7 @@ export interface ClientToServerEvents {
   stroke_start: (strokeId: string, options: CtxOptions, from: Point) => void;
   stroke_points: (strokeId: string, points: Point[]) => void;
   stroke_end: (strokeId: string) => void;
+  cursor: (x: number, y: number) => void;
+  viewport: (x: number, y: number, scale: number) => void;
+  summon: () => void;
 }

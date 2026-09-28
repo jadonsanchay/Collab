@@ -7,6 +7,7 @@ import { toBoard } from '@/common/lib/coords';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
 import { useOptionsValue, useSetSelection } from '@/common/store/options.store';
+import { usePresenceStore } from '@/common/store/presence.store';
 import { useMyMoves } from '@/common/store/room.store';
 import { useSetSavedMoves } from '@/common/store/history.store';
 import { useViewportStore } from '@/common/store/viewport.store';
@@ -48,6 +49,9 @@ export const useDraw = (blocked: boolean) => {
 
   const handleStartDrawing = (x: number, y: number) => {
     if (!liveCtx || blocked) return;
+
+    if (usePresenceStore.getState().following)
+      usePresenceStore.getState().setFollowing(null);
 
     const { x: vx, y: vy, scale } = useViewportStore.getState();
     const [finalX, finalY] = [toBoard(x, vx, scale), toBoard(y, vy, scale)];

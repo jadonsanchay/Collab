@@ -7,11 +7,13 @@ import { socket } from '@/common/lib/socket';
 import { useViewportStore } from '@/common/store/viewport.store';
 
 import { useMovesHandlers } from '../../../hooks/useMovesHandlers';
+import { usePresenceSync } from '../../../hooks/usePresenceSync';
 import { useRefs } from '../../../hooks/useRefs';
 import { useCtx } from '../hooks/useCtx';
 import { useDraw } from '../hooks/useDraw';
 import { useLiveStrokes } from '../hooks/useLiveStrokes';
 import { useSocketDraw } from '../hooks/useSocketDraw';
+import { useViewportBroadcast } from '../hooks/useViewportBroadcast';
 import { useViewportGestures } from '../hooks/useViewportGestures';
 import Background from './Background';
 import MiniMap from './Minimap';
@@ -42,6 +44,8 @@ const Canvas = () => {
 
   const { handleUndo, handleRedo } = useMovesHandlers();
   useLiveStrokes();
+  usePresenceSync();
+  useViewportBroadcast();
 
   // SETUP
   useEffect(() => {

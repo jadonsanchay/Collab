@@ -2,7 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 
 import { isTypingTarget, isFitBoard, isZoomIn, isZoomOut, isZoomReset } from '@/common/lib/keyboard';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
+import { usePresenceStore } from '@/common/store/presence.store';
 import { useViewportStore } from '@/common/store/viewport.store';
+
+/** Any local pan or zoom breaks follow mode. */
+const clearFollowing = () => {
+  if (usePresenceStore.getState().following) usePresenceStore.getState().setFollowing(null);
+};
 
 const ZOOM_STEP = 0.1;
 
@@ -35,15 +41,19 @@ export const useViewportGestures = () => {
 
       if (isZoomIn(e)) {
         e.preventDefault();
+        clearFollowing();
         zoomTo(useViewportStore.getState().scale * (1 + ZOOM_STEP), viewportSize);
       } else if (isZoomOut(e)) {
         e.preventDefault();
+        clearFollowing();
         zoomTo(useViewportStore.getState().scale * (1 - ZOOM_STEP), viewportSize);
       } else if (isZoomReset(e)) {
         e.preventDefault();
+        clearFollowing();
         zoomTo(1, viewportSize);
       } else if (isFitBoard(e)) {
         e.preventDefault();
+        clearFollowing();
         fitToBoard(viewportSize);
       }
     };
@@ -70,6 +80,7 @@ export const useViewportGestures = () => {
   const handlePointerDown = (e: React.PointerEvent) => {
     if (!isPanButton(e)) return false;
 
+    clearFollowing();
     panPointer.current = { id: e.pointerId, lastX: e.clientX, lastY: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
 
@@ -100,6 +111,7 @@ export const useViewportGestures = () => {
 
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
+    clearFollowing();
 
     if (e.ctrlKey || e.metaKey) {
       zoomAt(e.clientX, e.clientY, (-e.deltaY / 100) * ZOOM_STEP * 2, viewportSize);
