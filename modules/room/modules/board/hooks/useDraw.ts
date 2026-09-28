@@ -10,6 +10,11 @@ import { socket } from '@/common/lib/socket';
 import { useOptionsValue, useSetSelection } from '@/common/store/options.store';
 import { useMyMoves } from '@/common/store/room.store';
 import { useSetSavedMoves } from '@/common/store/history.store';
+import {
+  DEFAULT_TEMP_CIRCLE,
+  DEFAULT_TEMP_SIZE,
+  useDrawingStore,
+} from '@/common/store/drawing.store';
 import { Move } from '@/common/types/global';
 
 import { drawRect, drawCircle, drawLine } from '../helpers/Canvas.helpers';
@@ -19,9 +24,6 @@ import { useCtx } from './useCtx';
 // Module-level (not state/ref) so the in-progress stroke survives across renders without
 // re-rendering on every pointer-move — but this means only one draw-in-progress can exist
 // at a time across all instances of this hook.
-let tempMoves: [number, number][] = [];
-let tempCircle = { cX: 0, cY: 0, radiusX: 0, radiusY: 0 };
-let tempSize = { width: 0, height: 0 };
 let tempImageData: ImageData | undefined;
 
 export const useDraw = (blocked: boolean) => {
@@ -77,7 +79,9 @@ export const useDraw = (blocked: boolean) => {
       ctx.stroke();
     }
 
-    tempMoves.push([finalX, finalY]);
+    useDrawingStore.setState((state) => ({
+      tempMoves: [...state.tempMoves, [finalX, finalY]],
+    }));
   };
 
   const handleDraw = (x: number, y: number, shift?: boolean) => {
@@ -87,10 +91,14 @@ export const useDraw = (blocked: boolean) => {
 
     drawAndSet();
 
+    const { tempMoves } = useDrawingStore.getState();
+
     if (options.mode === 'select') {
       ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
       drawRect(ctx, tempMoves[0], finalX, finalY, false, true);
-      tempMoves.push([finalX, finalY]);
+      useDrawingStore.setState((state) => ({
+        tempMoves: [...state.tempMoves, [finalX, finalY]],
+      }));
 
       setupCtxOptions();
 
@@ -98,20 +106,25 @@ export const useDraw = (blocked: boolean) => {
     }
 
     switch (options.shape) {
-      case 'line':
-        if (shift) tempMoves = tempMoves.slice(0, 1);
+      case 'line': {
+        const points = shift ? tempMoves.slice(0, 1) : tempMoves;
 
-        drawLine(ctx, tempMoves[0], finalX, finalY, shift);
+        drawLine(ctx, points[0], finalX, finalY, shift);
 
-        tempMoves.push([finalX, finalY]);
+        useDrawingStore.setState({ tempMoves: [...points, [finalX, finalY]] });
         break;
+      }
 
       case 'circle':
-        tempCircle = drawCircle(ctx, tempMoves[0], finalX, finalY, shift);
+        useDrawingStore.setState({
+          tempCircle: drawCircle(ctx, tempMoves[0], finalX, finalY, shift),
+        });
         break;
 
       case 'rect':
-        tempSize = drawRect(ctx, tempMoves[0], finalX, finalY, shift);
+        useDrawingStore.setState({
+          tempSize: drawRect(ctx, tempMoves[0], finalX, finalY, shift),
+        });
         break;
 
       default:
@@ -130,6 +143,8 @@ export const useDraw = (blocked: boolean) => {
     setDrawing(false);
 
     ctx.closePath();
+
+    const { tempMoves, tempCircle, tempSize } = useDrawingStore.getState();
 
     let addMove = true;
     if (options.mode === 'select' && tempMoves.length) {
@@ -177,9 +192,11 @@ export const useDraw = (blocked: boolean) => {
       options,
     };
 
-    tempMoves = [];
-    tempCircle = { cX: 0, cY: 0, radiusX: 0, radiusY: 0 };
-    tempSize = { width: 0, height: 0 };
+    useDrawingStore.setState({
+      tempMoves: [],
+      tempCircle: DEFAULT_TEMP_CIRCLE,
+      tempSize: DEFAULT_TEMP_SIZE,
+    });
 
     if (options.mode !== 'select') {
       socket.emit('draw', move);

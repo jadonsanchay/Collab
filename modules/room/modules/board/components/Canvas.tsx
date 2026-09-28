@@ -67,7 +67,7 @@ const Canvas = () => {
         width={CANVAS_SIZE.width}
         height={CANVAS_SIZE.height}
         className={`absolute top-0 z-10 ${dragging && 'cursor-move'}`}
-        style={{ x, y }}
+        style={{ x, y, touchAction: 'none' }}
         // DRAG
         drag={dragging}
         dragConstraints={{
@@ -84,29 +84,24 @@ const Canvas = () => {
           e.preventDefault();
           e.stopPropagation();
         }}
-        onMouseDown={(e) => {
-          if (e.button === 2) {
+        onPointerDown={(e) => {
+          if (e.pointerType === 'mouse' && e.button === 2) {
             setDragging(true);
             dragControls.start(e as unknown as PointerEvent);
-          } else handleStartDrawing(e.clientX, e.clientY);
+            return;
+          }
+
+          e.currentTarget.setPointerCapture(e.pointerId);
+          handleStartDrawing(e.clientX, e.clientY);
         }}
-        onMouseUp={(e) => {
-          if (e.button === 2) setDragging(false);
+        onPointerUp={(e) => {
+          if (e.pointerType === 'mouse' && e.button === 2) setDragging(false);
           else handleEndDrawing();
         }}
-        onMouseMove={(e) => {
+        onPointerMove={(e) => {
           handleDraw(e.clientX, e.clientY, e.shiftKey);
         }}
-        onTouchStart={(e) =>
-          handleStartDrawing(
-            e.changedTouches[0].clientX,
-            e.changedTouches[0].clientY,
-          )
-        }
-        onTouchEnd={handleEndDrawing}
-        onTouchMove={(e) =>
-          handleDraw(e.changedTouches[0].clientX, e.changedTouches[0].clientY)
-        }
+        onPointerCancel={handleEndDrawing}
       />
       <Background bgRef={bgRef} />
 
