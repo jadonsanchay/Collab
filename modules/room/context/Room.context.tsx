@@ -10,7 +10,6 @@ import {
   ReactNode,
 } from 'react';
 
-import { MotionValue, useMotionValue } from 'framer-motion';
 import { toast } from 'react-toastify';
 
 import { getMyUserId } from '@/common/lib/identity';
@@ -20,8 +19,6 @@ import { useSetUsers, useSetRoom, useRoom } from '@/common/store/room.store';
 import { Move, User } from '@/common/types/global';
 
 export const roomContext = createContext<{
-  x: MotionValue<number>;
-  y: MotionValue<number>;
   /**
    * React 19's `useRef(null)` returns `RefObject<T | null>`, unlike React 18
    * where `RefObject<T>` already folded in the null.
@@ -65,9 +62,6 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
     if (moveImage.base64 && !moveImage.x && !moveImage.y)
       setMoveImage({ base64: moveImage.base64, x: 50, y: 50 });
   }, [moveImage]);
-
-  const x = useMotionValue(0);
-  const y = useMotionValue(0);
 
   /**
    * Resumes the session when the socket comes back.
@@ -230,8 +224,6 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
 
   const value = useMemo(
     () => ({
-      x,
-      y,
       bgRef,
       undoRef,
       redoRef,
@@ -242,8 +234,6 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       selectionRefs,
     }),
     [
-      x,
-      y,
       bgRef,
       undoRef,
       redoRef,

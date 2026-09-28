@@ -1,39 +1,27 @@
-import { useEffect, useState } from 'react';
-
 import { AiOutlineDelete } from 'react-icons/ai';
 import { BsArrowsMove } from 'react-icons/bs';
 import { FiCopy } from 'react-icons/fi';
 
+import { toScreen } from '@/common/lib/coords';
 import { useOptionsValue } from '@/common/store/options.store';
+import { useViewportStore } from '@/common/store/viewport.store';
 
 import { useRefs } from '../../../hooks/useRefs';
-import { useBoardPosition } from '../hooks/useBoardPosition';
 
 const SelectionBtns = () => {
   const { selection } = useOptionsValue();
   const { selectionRefs } = useRefs();
-  const boardPos = useBoardPosition();
-
-  const [boardX, setX] = useState(0);
-  const [boardY, setY] = useState(0);
-
-  useEffect(() => {
-    const unsubscribe = boardPos.x.on('change', setX);
-    return unsubscribe;
-  }, [boardPos.x]);
-
-  useEffect(() => {
-    const unsubscribe = boardPos.y.on('change', setY);
-    return unsubscribe;
-  }, [boardPos.y]);
+  const boardX = useViewportStore((state) => state.x);
+  const boardY = useViewportStore((state) => state.y);
+  const scale = useViewportStore((state) => state.scale);
 
   let top = -40;
   let left = -40;
 
   if (selection) {
     const { x, y, width, height } = selection;
-    top = Math.min(y, y + height) - 40 + boardY;
-    left = Math.min(x, x + width) + boardX;
+    top = toScreen(Math.min(y, y + height), boardY, scale) - 40;
+    left = toScreen(Math.min(x, x + width), boardX, scale);
   }
 
   return (

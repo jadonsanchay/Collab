@@ -6,15 +6,17 @@ import { AiOutlineCheck, AiOutlineClose } from 'react-icons/ai';
 import { v4 } from 'uuid';
 
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
-import { getPos } from '@/common/lib/getPos';
+import { toBoard } from '@/common/lib/coords';
 import { socket } from '@/common/lib/socket';
+import { useViewportStore } from '@/common/store/viewport.store';
 import { Move } from '@/common/types/global';
 
 import { useMoveImage } from '../../../hooks/useMoveImage';
-import { useBoardPosition } from '../hooks/useBoardPosition';
 
 const MoveImage = () => {
-  const { x, y } = useBoardPosition();
+  const x = useViewportStore((state) => state.x);
+  const y = useViewportStore((state) => state.y);
+  const scale = useViewportStore((state) => state.scale);
   const { moveImage, setMoveImage } = useMoveImage();
 
   const imageX = useMotionValue(moveImage.x || 50);
@@ -28,7 +30,10 @@ const MoveImage = () => {
   }, [imageX, imageY, moveImage.x, moveImage.y]);
 
   const handlePlaceImage = () => {
-    const [finalX, finalY] = [getPos(imageX.get(), x), getPos(imageY.get(), y)];
+    const [finalX, finalY] = [
+      toBoard(imageX.get(), x, scale),
+      toBoard(imageY.get(), y, scale),
+    ];
 
     const move: Move = {
       ...DEFAULT_MOVE,

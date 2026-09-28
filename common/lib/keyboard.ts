@@ -49,3 +49,15 @@ export const isCopy = (event: KeyboardEvent): boolean =>
 
 export const isDelete = (event: KeyboardEvent): boolean =>
   event.key === 'Delete' || event.key === 'Backspace';
+
+export const isZoomIn = (event: KeyboardEvent): boolean =>
+  hasModifier(event) && event.key === '=';
+
+export const isZoomOut = (event: KeyboardEvent): boolean =>
+  hasModifier(event) && event.key === '-';
+
+export const isZoomReset = (event: KeyboardEvent): boolean =>
+  hasModifier(event) && event.key === '0';
+
+export const isFitBoard = (event: KeyboardEvent): boolean =>
+  event.shiftKey && event.key === '1';

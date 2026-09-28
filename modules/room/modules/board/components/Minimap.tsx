@@ -4,40 +4,18 @@ import { motion, useMotionValue } from 'framer-motion';
 
 import { CANVAS_SIZE } from '@/common/constants/canvasSize';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
+import { useViewportStore } from '@/common/store/viewport.store';
 
 import { useRefs } from '../../../hooks/useRefs';
-import { useBoardPosition } from '../hooks/useBoardPosition';
 
 const MiniMap = ({ dragging }: { dragging: boolean }) => {
   const { minimapRef } = useRefs();
-  const boardPos = useBoardPosition();
+  const x = useViewportStore((state) => state.x);
+  const y = useViewportStore((state) => state.y);
+  const scale = useViewportStore((state) => state.scale);
   const { width, height } = useViewportSize();
 
-  const [x, setX] = useState(0);
-  const [y, setY] = useState(0);
-
   const [draggingMinimap, setDraggingMinimap] = useState(false);
-
-  useEffect(() => {
-    // Create a single update function to handle both x and y changes
-    const updatePositionFromBoard = () => {
-      setX(boardPos.x.get());
-      setY(boardPos.y.get());
-    };
-
-    // Initial update
-    updatePositionFromBoard();
-
-    // Subscribe to both x and y changes
-    const unsubscribeX = boardPos.x.on('change', updatePositionFromBoard);
-    const unsubscribeY = boardPos.y.on('change', updatePositionFromBoard);
-
-    // Clean up subscriptions
-    return () => {
-      unsubscribeX();
-      unsubscribeY();
-    };
-  }, [boardPos.x, boardPos.y]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -53,11 +31,13 @@ const MiniMap = ({ dragging }: { dragging: boolean }) => {
 
   useEffect(() => {
     const handleMiniXChange = (newX: number) => {
-      if (!dragging) boardPos.x.set(Math.floor(-newX * divider));
+      if (!dragging)
+        useViewportStore.setState({ x: Math.floor(-newX * divider * scale) });
     };
 
     const handleMiniYChange = (newY: number) => {
-      if (!dragging) boardPos.y.set(Math.floor(-newY * divider));
+      if (!dragging)
+        useViewportStore.setState({ y: Math.floor(-newY * divider * scale) });
     };
 
     const unsubscribeX = miniX.on('change', handleMiniXChange);
@@ -67,7 +47,7 @@ const MiniMap = ({ dragging }: { dragging: boolean }) => {
       unsubscribeX();
       unsubscribeY();
     };
-  }, [boardPos.x, boardPos.y, divider, dragging, miniX, miniY]);
+  }, [divider, dragging, miniX, miniY, scale]);
 
   return (
     <div
@@ -93,12 +73,12 @@ const MiniMap = ({ dragging }: { dragging: boolean }) => {
         onDragEnd={() => setDraggingMinimap(false)}
         className="absolute left-0 top-0 cursor-grab rounded-lg border-2 border-red-500"
         style={{
-          width: width / divider,
-          height: height / divider,
+          width: width / divider / scale,
+          height: height / divider / scale,
           x: miniX,
           y: miniY,
         }}
-        animate={{ x: -x / divider, y: -y / divider }}
+        animate={{ x: -x / divider / scale, y: -y / divider / scale }}
         transition={{ duration: 0 }}
       />
     </div>

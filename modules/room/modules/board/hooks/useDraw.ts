@@ -4,12 +4,13 @@ import { v4 } from 'uuid';
 
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
-import { getPos } from '@/common/lib/getPos';
+import { toBoard } from '@/common/lib/coords';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
 import { useOptionsValue, useSetSelection } from '@/common/store/options.store';
 import { useMyMoves } from '@/common/store/room.store';
 import { useSetSavedMoves } from '@/common/store/history.store';
+import { useViewportStore } from '@/common/store/viewport.store';
 import {
   DEFAULT_TEMP_CIRCLE,
   DEFAULT_TEMP_SIZE,
@@ -18,7 +19,6 @@ import {
 import { Move } from '@/common/types/global';
 
 import { drawRect, drawCircle, drawLine } from '../helpers/Canvas.helpers';
-import { useBoardPosition } from './useBoardPosition';
 import { useCtx } from './useCtx';
 
 // Module-level (not state/ref) so the in-progress stroke survives across renders without
@@ -28,14 +28,10 @@ let tempImageData: ImageData | undefined;
 
 export const useDraw = (blocked: boolean) => {
   const options = useOptionsValue();
-  const boardPosition = useBoardPosition();
   const { clearSavedMoves } = useSetSavedMoves();
   const { handleAddMyMove } = useMyMoves();
   const { setSelection, clearSelection } = useSetSelection();
   const vw = useViewportSize();
-
-  const movedX = boardPosition.x;
-  const movedY = boardPosition.y;
 
   const [drawing, setDrawing] = useState(false);
   const ctx = useCtx();
@@ -51,23 +47,29 @@ export const useDraw = (blocked: boolean) => {
     }
   };
 
+  /**
+   * `getImageData`/`putImageData` work in the canvas's own pixel space, which
+   * never changes with zoom — only the region currently visible on screen
+   * does, so the captured offset and size both need the current scale.
+   */
   const drawAndSet = () => {
-    if (!tempImageData)
-      tempImageData = ctx?.getImageData(
-        movedX.get() * -1,
-        movedY.get() * -1,
-        vw.width,
-        vw.height,
-      );
+    const { x, y, scale } = useViewportStore.getState();
+    const boardX = toBoard(0, x, scale);
+    const boardY = toBoard(0, y, scale);
+    const width = vw.width / scale;
+    const height = vw.height / scale;
 
-    if (tempImageData)
-      ctx?.putImageData(tempImageData, movedX.get() * -1, movedY.get() * -1);
+    if (!tempImageData)
+      tempImageData = ctx?.getImageData(boardX, boardY, width, height);
+
+    if (tempImageData) ctx?.putImageData(tempImageData, boardX, boardY);
   };
 
   const handleStartDrawing = (x: number, y: number) => {
-    if (!ctx || blocked || blocked) return;
+    if (!ctx || blocked) return;
 
-    const [finalX, finalY] = [getPos(x, movedX), getPos(y, movedY)];
+    const { x: vx, y: vy, scale } = useViewportStore.getState();
+    const [finalX, finalY] = [toBoard(x, vx, scale), toBoard(y, vy, scale)];
 
     setDrawing(true);
     setupCtxOptions();
@@ -87,7 +89,8 @@ export const useDraw = (blocked: boolean) => {
   const handleDraw = (x: number, y: number, shift?: boolean) => {
     if (!ctx || !drawing || blocked) return;
 
-    const [finalX, finalY] = [getPos(x, movedX), getPos(y, movedY)];
+    const { x: vx, y: vy, scale } = useViewportStore.getState();
+    const [finalX, finalY] = [toBoard(x, vx, scale), toBoard(y, vy, scale)];
 
     drawAndSet();
 
