@@ -1,71 +1,55 @@
-import { useRef, useState } from 'react';
-
-import { AnimatePresence, motion } from 'framer-motion';
 import { RgbaColorPicker } from 'react-colorful';
 import { Palette } from 'lucide-react';
-import { useClickAway } from 'react-use';
 
+import HotkeyTooltip from '@/common/components/HotkeyTooltip';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/common/components/ui/popover';
 import { useOptions } from '@/common/store/options.store';
-
-import { EntryAnimation } from '../animations/Entry.animations';
 
 const ColorPicker = () => {
   const [options, setOptions] = useOptions();
 
-  const ref = useRef<HTMLDivElement>(null);
-
-  const [opened, setOpened] = useState(false);
-
-  useClickAway(ref, () => setOpened(false));
-
   return (
-    <div className="relative flex items-center" ref={ref}>
-      <button
-        type="button"
-        className="btn-icon"
-        onClick={() => setOpened(!opened)}
-        disabled={options.mode === 'select'}
-      >
-        <Palette />
-      </button>
-      <AnimatePresence>
-        {opened && (
-          <motion.div
-            className="absolute left-10 mt-24 sm:left-14"
-            variants={EntryAnimation}
-            initial="from"
-            animate="to"
-            exit="from"
+    <Popover>
+      <HotkeyTooltip label="Color">
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="btn-icon"
+            aria-label="Color"
+            disabled={options.mode === 'select'}
           >
-            <h2 className="ml-3 font-semibold text-black dark:text-white">
-              Line color
-            </h2>
-            <RgbaColorPicker
-              color={options.lineColor}
-              onChange={(e) => {
-                setOptions({
-                  ...options,
-                  lineColor: e,
-                });
-              }}
-              className="mb-5"
-            />
-            <h2 className="ml-3 font-semibold text-black dark:text-white">
-              Fill color
-            </h2>
-            <RgbaColorPicker
-              color={options.fillColor}
-              onChange={(e) => {
-                setOptions({
-                  ...options,
-                  fillColor: e,
-                });
-              }}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+            <Palette />
+          </button>
+        </PopoverTrigger>
+      </HotkeyTooltip>
+      <PopoverContent className="w-auto">
+        <h2 className="ml-3 font-semibold">Line color</h2>
+        <RgbaColorPicker
+          color={options.lineColor}
+          onChange={(e) => {
+            setOptions({
+              ...options,
+              lineColor: e,
+            });
+          }}
+          className="mb-5"
+        />
+        <h2 className="ml-3 font-semibold">Fill color</h2>
+        <RgbaColorPicker
+          color={options.fillColor}
+          onChange={(e) => {
+            setOptions({
+              ...options,
+              fillColor: e,
+            });
+          }}
+        />
+      </PopoverContent>
+    </Popover>
   );
 };
 

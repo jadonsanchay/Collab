@@ -15,6 +15,7 @@ const ZoomControls = () => {
     <div className="absolute bottom-5 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-zinc-900 p-1 text-white md:bottom-5 md:left-auto md:right-24 md:translate-x-0">
       <button
         type="button"
+        aria-label="Zoom out"
         className="rounded-lg p-2 hover:bg-zinc-700"
         onClick={() => zoomTo(scale * (1 - ZOOM_STEP), viewportSize)}
       >
@@ -22,6 +23,7 @@ const ZoomControls = () => {
       </button>
       <button
         type="button"
+        aria-label="Reset zoom to 100%"
         className="min-w-14 rounded-lg p-2 text-sm hover:bg-zinc-700"
         onClick={() => zoomTo(1, viewportSize)}
       >
@@ -29,6 +31,7 @@ const ZoomControls = () => {
       </button>
       <button
         type="button"
+        aria-label="Zoom in"
         className="rounded-lg p-2 hover:bg-zinc-700"
         onClick={() => zoomTo(scale * (1 + ZOOM_STEP), viewportSize)}
       >
@@ -36,6 +39,7 @@ const ZoomControls = () => {
       </button>
       <button
         type="button"
+        aria-label="Fit board to screen"
         className="rounded-lg px-2 py-1 text-xs hover:bg-zinc-700"
         onClick={() => fitToBoard(viewportSize)}
       >

@@ -1,115 +1,121 @@
-import { useEffect, useState } from 'react';
+import { Menu, Move } from 'lucide-react';
 
-import { motion } from 'framer-motion';
-import { useRouter } from 'next/router';
-import { ChevronRight, Download, LogOut, Share2 } from 'lucide-react';
-
-import { CANVAS_SIZE } from '@/common/constants/canvasSize';
+import HotkeyTooltip from '@/common/components/HotkeyTooltip';
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/common/components/ui/sheet';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
-import { useModal } from '@/modules/modal';
+import { useViewportStore } from '@/common/store/viewport.store';
 
-import { useRefs } from '../../../hooks/useRefs';
-import ShareModal from '../modals/ShareModal';
+import { useToolbarActionsContext } from '../context/ToolbarActions.context';
+import { useToolHotkeys } from '../hooks/useToolHotkeys';
+import HistoryBtns from './HistoryBtns';
 import BackgroundPicker from './BackgroundPicker';
 import ColorPicker from './ColorPicker';
-import HistoryBtns from './HistoryBtns';
 import ImagePicker from './ImagePicker';
 import LineWidthPicker from './LineWidthPicker';
 import ModePicker from './ModePicker';
 import ShapeSelector from './ShapeSelector';
 
-const ToolBar = () => {
-  const { canvasRef, bgRef } = useRefs();
-  const { openModal } = useModal();
-  const { width } = useViewportSize();
+const HandToolToggle = () => {
+  const handTool = useViewportStore((state) => state.handTool);
+  const setHandTool = useViewportStore((state) => state.setHandTool);
 
-  const [opened, setOpened] = useState(false);
+  return (
+    <HotkeyTooltip label="Hand tool" hotkey="H">
+      <button
+        type="button"
+        aria-label="Hand tool"
+        aria-pressed={handTool}
+        className={`btn-icon ${handTool ? 'bg-green-400 text-black' : ''}`}
+        onClick={() => setHandTool((prev) => !prev)}
+      >
+        <Move />
+      </button>
+    </HotkeyTooltip>
+  );
+};
 
-  const router = useRouter();
-
-  useEffect(() => {
-    if (width >= 1024) setOpened(true);
-    else setOpened(false);
-  }, [width]);
-
-  const handleExit = () => router.push('/');
-
-  const handleDownload = () => {
-    const canvas = document.createElement('canvas');
-    canvas.width = CANVAS_SIZE.width;
-    canvas.height = CANVAS_SIZE.height;
-
-    const tempCtx = canvas.getContext('2d');
-
-    if (tempCtx && canvasRef.current && bgRef.current) {
-      tempCtx.drawImage(bgRef.current, 0, 0);
-      tempCtx.drawImage(canvasRef.current, 0, 0);
-    }
-
-    const link = document.createElement('a');
-    link.href = canvas.toDataURL('image/png');
-    link.download = 'canvas.png';
-    link.click();
-  };
-
-  const handleShare = () => openModal(<ShareModal />);
+const ToolButtons = () => {
+  const { openImageInput } = useToolbarActionsContext();
 
   return (
     <>
-      <motion.button
-        className="btn-icon absolute -left-2 bottom-1/2 z-50 size-10 rounded-full bg-black text-2xl transition-none lg:hidden"
-        animate={{ rotate: opened ? 0 : 180 }}
-        transition={{ duration: 0.2 }}
-        onClick={() => setOpened(!opened)}
-      >
-        <ChevronRight />
-      </motion.button>
-      <motion.div
-        className="absolute left-10 top-1/2 z-50 grid grid-cols-2 items-center gap-5 rounded-lg bg-zinc-900 p-5 text-white 2xl:grid-cols-1"
-        animate={{
-          x: opened ? 0 : -160,
-          y: '-50%',
-        }}
-        transition={{
-          duration: 0.2,
-        }}
-      >
-        <HistoryBtns />
+      <ModePicker />
+      <HandToolToggle />
 
-        <div className="h-px w-full bg-white 2xl:hidden" />
-        <div className="h-px w-full bg-white" />
+      <div className="h-6 w-px bg-white/20" />
 
-        <ShapeSelector />
-        <ColorPicker />
-        <LineWidthPicker />
-        <ModePicker />
-        <ImagePicker />
+      <ShapeSelector />
 
-        <div className="2xl:hidden" />
-        <div className="h-px w-full bg-white 2xl:hidden" />
-        <div className="h-px w-full bg-white" />
+      <div className="h-6 w-px bg-white/20" />
 
-        <BackgroundPicker />
-        <button
-          type="button"
-          className="btn-icon text-2xl"
-          onClick={handleShare}
-        >
-          <Share2 />
-        </button>
-        <button
-          type="button"
-          className="btn-icon text-2xl"
-          onClick={handleDownload}
-        >
-          <Download />
-        </button>
-        <button type="button" className="btn-icon text-xl" onClick={handleExit}>
-          <LogOut />
-        </button>
-      </motion.div>
+      <ColorPicker />
+      <LineWidthPicker />
+      <ImagePicker onOpen={openImageInput} />
+      <BackgroundPicker />
     </>
   );
 };
 
-export default ToolBar;
+const MOBILE_BREAKPOINT = 768;
+
+/**
+ * The bottom-center tool cluster. Undo/redo live at bottom-left and zoom
+ * controls at bottom-right (both rendered by Canvas.tsx / ZoomControls),
+ * so this component owns only the tool-switching row plus the two
+ * per-stroke settings (color, width). Below the mobile breakpoint it
+ * collapses into a bottom Sheet instead of a fixed bar.
+ */
+const Toolbar = () => {
+  const { openImageInput } = useToolbarActionsContext();
+  const { width } = useViewportSize();
+
+  useToolHotkeys({ onOpenImageInput: openImageInput });
+
+  if (width && width < MOBILE_BREAKPOINT) {
+    return (
+      <div className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3">
+        <div className="flex items-center gap-1 rounded-xl bg-zinc-900 p-2 text-white">
+          <HistoryBtns />
+        </div>
+
+        <Sheet>
+          <SheetTrigger asChild>
+            <button
+              type="button"
+              aria-label="Open tools"
+              className="btn-icon rounded-xl bg-zinc-900 p-2 text-white"
+            >
+              <Menu />
+            </button>
+          </SheetTrigger>
+          <SheetContent side="bottom" className="pb-8">
+            <SheetTitle>Tools</SheetTitle>
+            <div
+              role="toolbar"
+              aria-label="Drawing tools"
+              className="mt-4 flex flex-wrap items-center gap-1"
+            >
+              <ToolButtons />
+            </div>
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      role="toolbar"
+      aria-label="Drawing tools"
+      className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-zinc-900 p-2 text-white"
+    >
+      <div className="absolute -left-24 bottom-0 flex items-center gap-1">
+        <HistoryBtns />
+      </div>
+
+      <ToolButtons />
+    </div>
+  );
+};
+
+export default Toolbar;

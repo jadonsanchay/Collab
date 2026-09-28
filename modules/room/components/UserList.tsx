@@ -1,5 +1,6 @@
 import { Megaphone } from 'lucide-react';
 
+import HotkeyTooltip from '@/common/components/HotkeyTooltip';
 import { socket } from '@/common/lib/socket';
 import { usePresenceStore } from '@/common/store/presence.store';
 import { useRoom } from '@/common/store/room.store';
@@ -10,7 +11,7 @@ const UserList = () => {
   const setFollowing = usePresenceStore((state) => state.setFollowing);
 
   return (
-    <div className="absolute z-30 flex items-center gap-2 p-5">
+    <div className="flex items-center gap-2">
       <div className="flex">
         {[...users.keys()].map((userId, index) => {
           const user = users.get(userId);
@@ -41,14 +42,16 @@ const UserList = () => {
         })}
       </div>
 
-      <button
-        type="button"
-        title="Bring everyone to your view"
-        className="flex size-8 items-center justify-center rounded-full bg-zinc-800 text-white"
-        onClick={() => socket.emit('summon')}
-      >
-        <Megaphone />
-      </button>
+      <HotkeyTooltip label="Bring everyone to your view">
+        <button
+          type="button"
+          aria-label="Summon everyone to your view"
+          className="flex size-8 items-center justify-center rounded-full bg-zinc-800 text-white"
+          onClick={() => socket.emit('summon')}
+        >
+          <Megaphone />
+        </button>
+      </HotkeyTooltip>
     </div>
   );
 };

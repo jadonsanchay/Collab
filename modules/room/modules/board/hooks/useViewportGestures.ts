@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { isTypingTarget, isFitBoard, isZoomIn, isZoomOut, isZoomReset } from '@/common/lib/keyboard';
+import {
+  isFitBoard,
+  isHandTool,
+  isTypingTarget,
+  isZoomIn,
+  isZoomOut,
+  isZoomReset,
+} from '@/common/lib/keyboard';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { usePresenceStore } from '@/common/store/presence.store';
 import { useViewportStore } from '@/common/store/viewport.store';
@@ -19,7 +26,8 @@ const ZOOM_STEP = 0.1;
  * pinch), and the keyboard shortcuts below.
  */
 export const useViewportGestures = () => {
-  const [handTool, setHandTool] = useState(false);
+  const handTool = useViewportStore((state) => state.handTool);
+  const setHandTool = useViewportStore((state) => state.setHandTool);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const panBy = useViewportStore((state) => state.panBy);
   const zoomAt = useViewportStore((state) => state.zoomAt);
@@ -55,6 +63,9 @@ export const useViewportGestures = () => {
         e.preventDefault();
         clearFollowing();
         fitToBoard(viewportSize);
+      } else if (isHandTool(e)) {
+        e.preventDefault();
+        setHandTool((prev) => !prev);
       }
     };
 
@@ -69,7 +80,7 @@ export const useViewportGestures = () => {
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('keyup', onKeyUp);
     };
-  }, [fitToBoard, viewportSize, zoomTo]);
+  }, [fitToBoard, setHandTool, viewportSize, zoomTo]);
 
   const isPanButton = (e: { pointerType: string; button: number }) =>
     e.button === 1 ||

@@ -1,7 +1,5 @@
 import { useEffect } from 'react';
 
-import { Move } from 'lucide-react';
-
 import { CANVAS_SIZE } from '@/common/constants/canvasSize';
 import { socket } from '@/common/lib/socket';
 import { useViewportStore } from '@/common/store/viewport.store';
@@ -29,8 +27,6 @@ const Canvas = () => {
   const scale = useViewportStore((state) => state.scale);
 
   const {
-    handTool,
-    setHandTool,
     isPanning,
     handlePointerDown: handlePanPointerDown,
     handlePointerMove: handlePanPointerMove,
@@ -128,16 +124,6 @@ const Canvas = () => {
       <MiniMap dragging={isPanning} />
 
       <ZoomControls />
-
-      <button
-        type="button"
-        className={`absolute bottom-14 right-5 z-10 rounded-xl md:bottom-5 ${
-          handTool ? 'bg-green-500' : 'bg-zinc-300 text-black'
-        } p-3 text-lg text-white`}
-        onClick={() => setHandTool((prev) => !prev)}
-      >
-        <Move />
-      </button>
     </div>
   );
 };

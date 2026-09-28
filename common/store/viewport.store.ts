@@ -9,6 +9,10 @@ type ViewportState = {
   x: number;
   y: number;
   scale: number;
+  /** Toggled by the hand-tool button or the `H` hotkey; read by both the
+   * pan gesture logic in useViewportGestures and the toolbar button. */
+  handTool: boolean;
+  setHandTool: (handTool: boolean | ((prev: boolean) => boolean)) => void;
   panBy: (dx: number, dy: number, viewportSize: { width: number; height: number }) => void;
   zoomAt: (
     screenX: number,
@@ -41,6 +45,12 @@ export const useViewportStore = create<ViewportState>((set, get) => ({
   x: 0,
   y: 0,
   scale: 1,
+  handTool: false,
+
+  setHandTool: (handTool) =>
+    set((state) => ({
+      handTool: typeof handTool === 'function' ? handTool(state.handTool) : handTool,
+    })),
 
   panBy: (dx, dy, viewportSize) => {
     const { x, y, scale } = get();

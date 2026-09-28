@@ -61,3 +61,36 @@ export const isZoomReset = (event: KeyboardEvent): boolean =>
 
 export const isFitBoard = (event: KeyboardEvent): boolean =>
   event.shiftKey && event.key === '1';
+
+/**
+ * Single-letter tool shortcuts. Never modifier-gated: a bare letter, guarded
+ * only by `isTypingTarget` in the listener that uses this, same as every
+ * other shortcut here.
+ */
+const toolKey = (key: string) => (event: KeyboardEvent): boolean =>
+  !hasModifier(event) && !event.shiftKey && event.key.toLowerCase() === key;
+
+export const isSelectTool = toolKey('v');
+export const isHandTool = toolKey('h');
+export const isPenTool = toolKey('p');
+export const isEraserTool = toolKey('e');
+export const isRectTool = toolKey('r');
+export const isCircleTool = toolKey('o');
+export const isLineTool = toolKey('l');
+export const isImageTool = toolKey('i');
+
+export const isWidthDecrease = (event: KeyboardEvent): boolean =>
+  !hasModifier(event) && event.key === '[';
+
+export const isWidthIncrease = (event: KeyboardEvent): boolean =>
+  !hasModifier(event) && event.key === ']';
+
+export const isCommandPalette = (event: KeyboardEvent): boolean =>
+  hasModifier(event) && event.key.toLowerCase() === 'k';
+
+/** `?` is Shift+/ on every layout that has a dedicated `?` key. */
+export const isShortcutsSheet = (event: KeyboardEvent): boolean =>
+  !hasModifier(event) && event.key === '?';
+
+export const isEscape = (event: KeyboardEvent): boolean =>
+  event.key === 'Escape';

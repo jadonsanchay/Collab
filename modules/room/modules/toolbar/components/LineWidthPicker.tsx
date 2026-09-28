@@ -1,58 +1,50 @@
-import { useRef, useState } from 'react';
-
-import { AnimatePresence, motion } from 'framer-motion';
 import { SlidersHorizontal } from 'lucide-react';
-import { useClickAway } from 'react-use';
 
+import HotkeyTooltip from '@/common/components/HotkeyTooltip';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/common/components/ui/popover';
+import { Slider } from '@/common/components/ui/slider';
 import { useOptions } from '@/common/store/options.store';
 
-import { EntryAnimation } from '../animations/Entry.animations';
+const MIN_WIDTH = 1;
+const MAX_WIDTH = 20;
 
 const LineWidthPicker = () => {
   const [options, setOptions] = useOptions();
 
-  const ref = useRef<HTMLDivElement>(null);
-
-  const [opened, setOpened] = useState(false);
-
-  useClickAway(ref, () => setOpened(false));
+  const setWidth = (width: number) =>
+    setOptions((prev) => ({
+      ...prev,
+      lineWidth: Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width)),
+    }));
 
   return (
-    <div className="relative flex items-center" ref={ref}>
-      <button
-        type="button"
-        className="btn-icon text-xl"
-        onClick={() => setOpened(!opened)}
-        disabled={options.mode === 'select'}
-      >
-        <SlidersHorizontal />
-      </button>
-      <AnimatePresence>
-        {opened && (
-          <motion.div
-            className="absolute left-14 top-[6px] w-36"
-            variants={EntryAnimation}
-            initial="from"
-            animate="to"
-            exit="from"
+    <Popover>
+      <HotkeyTooltip label="Line width" hotkey="[ ]">
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className="btn-icon"
+            aria-label="Line width"
+            disabled={options.mode === 'select'}
           >
-            <input
-              type="range"
-              min={1}
-              max={20}
-              value={options.lineWidth}
-              onChange={(e) =>
-                setOptions((prev) => ({
-                  ...prev,
-                  lineWidth: parseInt(e.target.value, 10),
-                }))
-              }
-              className="h-4 w-full cursor-pointer appearance-none rounded-lg bg-gray-200"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+            <SlidersHorizontal />
+          </button>
+        </PopoverTrigger>
+      </HotkeyTooltip>
+      <PopoverContent className="w-48">
+        <Slider
+          min={MIN_WIDTH}
+          max={MAX_WIDTH}
+          step={1}
+          value={[options.lineWidth]}
+          onValueChange={([value]) => setWidth(value)}
+        />
+      </PopoverContent>
+    </Popover>
   );
 };
 

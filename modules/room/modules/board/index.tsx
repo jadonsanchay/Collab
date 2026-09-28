@@ -2,7 +2,7 @@ import Canvas from './components/Canvas';
 import CursorBroadcaster from './components/CursorBroadcaster';
 import CursorLayer from './components/CursorLayer';
 import MoveImage from './components/MoveImage';
-import SelectionBtns from './components/SelectionBtns';
+import SelectionBar from './components/SelectionBar';
 
 const Board = () => (
   <>
@@ -10,7 +10,7 @@ const Board = () => (
     <CursorBroadcaster />
     <CursorLayer />
     <MoveImage />
-    <SelectionBtns />
+    <SelectionBar />
   </>
 );
 
