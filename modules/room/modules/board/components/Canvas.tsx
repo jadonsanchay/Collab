@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { BsArrowsMove } from 'react-icons/bs';
+import { Move } from 'lucide-react';
 
 import { CANVAS_SIZE } from '@/common/constants/canvasSize';
 import { socket } from '@/common/lib/socket';
@@ -136,7 +136,7 @@ const Canvas = () => {
         } p-3 text-lg text-white`}
         onClick={() => setHandTool((prev) => !prev)}
       >
-        <BsArrowsMove />
+        <Move />
       </button>
     </div>
   );

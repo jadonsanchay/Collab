@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { motion } from 'framer-motion';
-import { BsFillChatFill } from 'react-icons/bs';
-import { FaChevronDown } from 'react-icons/fa';
+import { ChevronDown, MessageCircle } from 'lucide-react';
 import { useList } from 'react-use';
 
 import { socket } from '@/common/lib/socket';
@@ -60,7 +59,7 @@ const Chat = () => {
         }}
       >
         <div className="flex items-center gap-2">
-          <BsFillChatFill className="mt-[-2px]" />
+          <MessageCircle className="mt-[-2px]" />
           Chat
           {newMsg && (
             <p className="rounded-md bg-green-500 px-1 font-semibold text-green-900">
@@ -73,7 +72,7 @@ const Chat = () => {
           animate={{ rotate: opened ? 0 : 180 }}
           transition={{ duration: 0.2 }}
         >
-          <FaChevronDown />
+          <ChevronDown />
         </motion.div>
       </button>
       <div className="flex flex-1 flex-col justify-between bg-white p-3">

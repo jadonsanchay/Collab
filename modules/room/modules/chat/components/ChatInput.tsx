@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
 
-import { AiOutlineSend } from 'react-icons/ai';
+import { Send } from 'lucide-react';
 
 import { socket } from '@/common/lib/socket';
 import { chatMessageSchema, MAX_MESSAGE_LENGTH } from '@/common/schemas/user';
@@ -40,7 +40,7 @@ const ChatInput = () => {
         type="submit"
         disabled={!parsed.success}
       >
-        <AiOutlineSend />
+        <Send />
       </button>
     </form>
   );

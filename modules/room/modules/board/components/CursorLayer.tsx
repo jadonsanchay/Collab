@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { BsCursorFill } from 'react-icons/bs';
+import { MousePointer2 } from 'lucide-react';
 
 import { getMyUserId } from '@/common/lib/identity';
 import { toScreen } from '@/common/lib/coords';
@@ -104,7 +104,7 @@ const CursorLayer = () => {
               transform: `translate(${toScreen(pos.x, x, scale)}px, ${toScreen(pos.y, y, scale)}px)`,
             }}
           >
-            <BsCursorFill className="-rotate-90" />
+            <MousePointer2 />
             {msg && (
               <p className="absolute left-5 top-full max-h-20 max-w-60 overflow-hidden text-ellipsis rounded-md bg-zinc-900 p-1 px-3 text-white">
                 {msg}

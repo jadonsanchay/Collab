@@ -1,8 +1,6 @@
 import { useEffect } from 'react';
 
-import { AiOutlineSelect } from 'react-icons/ai';
-import { BsPencilFill } from 'react-icons/bs';
-import { FaEraser } from 'react-icons/fa';
+import { Eraser, MousePointer2, Pencil } from 'lucide-react';
 
 import { useOptions, useSetSelection } from '@/common/store/options.store';
 
@@ -28,7 +26,7 @@ const ModePicker = () => {
           }));
         }}
       >
-        <BsPencilFill />
+        <Pencil />
       </button>
 
       <button
@@ -43,7 +41,7 @@ const ModePicker = () => {
           }));
         }}
       >
-        <FaEraser />
+        <Eraser />
       </button>
 
       <button
@@ -58,7 +56,7 @@ const ModePicker = () => {
           }));
         }}
       >
-        <AiOutlineSelect />
+        <MousePointer2 />
       </button>
     </>
   );

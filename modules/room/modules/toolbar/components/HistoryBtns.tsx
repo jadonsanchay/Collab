@@ -1,4 +1,4 @@
-import { FaRedo, FaUndo } from 'react-icons/fa';
+import { Redo2, Undo2 } from 'lucide-react';
 
 import { useMyMoves } from '@/common/store/room.store';
 import { useSavedMoves } from '@/common/store/history.store';
@@ -19,7 +19,7 @@ const HistoryBtns = () => {
         ref={redoRef}
         disabled={!savedMoves.length}
       >
-        <FaRedo />
+        <Redo2 />
       </button>
       <button
         type="button"
@@ -27,7 +27,7 @@ const HistoryBtns = () => {
         ref={undoRef}
         disabled={!myMoves.length}
       >
-        <FaUndo />
+        <Undo2 />
       </button>
     </>
   );

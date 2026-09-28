@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/router';
-import { FiChevronRight } from 'react-icons/fi';
-import { HiOutlineDownload } from 'react-icons/hi';
-import { ImExit } from 'react-icons/im';
-import { IoIosShareAlt } from 'react-icons/io';
+import { ChevronRight, Download, LogOut, Share2 } from 'lucide-react';
 
 import { CANVAS_SIZE } from '@/common/constants/canvasSize';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
@@ -65,7 +62,7 @@ const ToolBar = () => {
         transition={{ duration: 0.2 }}
         onClick={() => setOpened(!opened)}
       >
-        <FiChevronRight />
+        <ChevronRight />
       </motion.button>
       <motion.div
         className="absolute left-10 top-1/2 z-50 grid grid-cols-2 items-center gap-5 rounded-lg bg-zinc-900 p-5 text-white 2xl:grid-cols-1"
@@ -98,17 +95,17 @@ const ToolBar = () => {
           className="btn-icon text-2xl"
           onClick={handleShare}
         >
-          <IoIosShareAlt />
+          <Share2 />
         </button>
         <button
           type="button"
           className="btn-icon text-2xl"
           onClick={handleDownload}
         >
-          <HiOutlineDownload />
+          <Download />
         </button>
         <button type="button" className="btn-icon text-xl" onClick={handleExit}>
-          <ImExit />
+          <LogOut />
         </button>
       </motion.div>
     </>

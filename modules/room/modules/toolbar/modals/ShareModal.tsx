@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { AiOutlineClose } from 'react-icons/ai';
+import { X } from 'lucide-react';
 
 import { useRoom } from '@/common/store/room.store';
 import { useModal } from '@/modules/modal';
@@ -22,7 +22,7 @@ const ShareModal = () => {
         onClick={closeModal}
         className="absolute right-5 top-5"
       >
-        <AiOutlineClose />
+        <X />
       </button>
       <h2 className="text-2xl font-bold">Invite</h2>
       <h3>

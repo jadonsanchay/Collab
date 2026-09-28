@@ -1,4 +1,4 @@
-import { CgScreen } from 'react-icons/cg';
+import { Monitor } from 'lucide-react';
 
 import { useModal } from '@/modules/modal';
 
@@ -13,7 +13,7 @@ const BackgroundPicker = () => {
       className="btn-icon"
       onClick={() => openModal(<BackgroundModal />)}
     >
-      <CgScreen />
+      <Monitor />
     </button>
   );
 };

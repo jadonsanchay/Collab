@@ -10,7 +10,7 @@ import {
   ReactNode,
 } from 'react';
 
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 import { getMyUserId } from '@/common/lib/identity';
 import { socket } from '@/common/lib/socket';
@@ -184,29 +184,19 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
     });
 
     socket.on('new_user', (userId, username, color) => {
-      toast(`${username} has joined the room.`, {
-        position: 'top-center',
-        theme: 'colored',
-      });
+      toast(`${username} has joined the room.`);
 
       handleAddUser(userId, username, color);
     });
 
     socket.on('user_disconnected', (userId) => {
-      toast(`${users.get(userId)?.name || 'Anonymous'} has left the room.`, {
-        position: 'top-center',
-        theme: 'colored',
-      });
+      toast(`${users.get(userId)?.name || 'Anonymous'} has left the room.`);
 
       handleRemoveUser(userId);
     });
 
     socket.on('rate_limited', () => {
-      toast('You are sending messages too quickly.', {
-        position: 'top-center',
-        theme: 'colored',
-        type: 'warning',
-      });
+      toast.warning('You are sending messages too quickly.');
     });
 
     return () => {

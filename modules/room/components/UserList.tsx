@@ -1,4 +1,4 @@
-import { BsMegaphone } from 'react-icons/bs';
+import { Megaphone } from 'lucide-react';
 
 import { socket } from '@/common/lib/socket';
 import { usePresenceStore } from '@/common/store/presence.store';
@@ -47,7 +47,7 @@ const UserList = () => {
         className="flex size-8 items-center justify-center rounded-full bg-zinc-800 text-white"
         onClick={() => socket.emit('summon')}
       >
-        <BsMegaphone />
+        <Megaphone />
       </button>
     </div>
   );

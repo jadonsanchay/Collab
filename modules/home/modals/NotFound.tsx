@@ -1,4 +1,4 @@
-import { AiOutlineClose } from 'react-icons/ai';
+import { X } from 'lucide-react';
 
 import { useModal } from '@/modules/modal';
 
@@ -12,7 +12,7 @@ const NotFoundModal = ({ id }: { id: string }) => {
         onClick={closeModal}
         className="absolute right-5 top-5"
       >
-        <AiOutlineClose />
+        <X />
       </button>
       <h2 className="text-lg font-bold">
         Room with id &quot;{id}&quot; does not exist or is full!

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { BsFillImageFill } from 'react-icons/bs';
+import { Image as ImageIcon } from 'lucide-react';
 
 import { optimizeImage } from '@/common/lib/optimizeImage';
 
@@ -50,7 +50,7 @@ const ImagePicker = () => {
       className="btn-icon text-xl"
       onClick={handleImageInput}
     >
-      <BsFillImageFill />
+      <ImageIcon />
     </button>
   );
 };

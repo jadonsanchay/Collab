@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { BsBorderWidth } from 'react-icons/bs';
+import { SlidersHorizontal } from 'lucide-react';
 import { useClickAway } from 'react-use';
 
 import { useOptions } from '@/common/store/options.store';
@@ -25,7 +25,7 @@ const LineWidthPicker = () => {
         onClick={() => setOpened(!opened)}
         disabled={options.mode === 'select'}
       >
-        <BsBorderWidth />
+        <SlidersHorizontal />
       </button>
       <AnimatePresence>
         {opened && (

@@ -1,4 +1,4 @@
-import { AiOutlineMinus, AiOutlinePlus } from 'react-icons/ai';
+import { Minus, Plus } from 'lucide-react';
 
 import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { useViewportStore } from '@/common/store/viewport.store';
@@ -18,7 +18,7 @@ const ZoomControls = () => {
         className="rounded-lg p-2 hover:bg-zinc-700"
         onClick={() => zoomTo(scale * (1 - ZOOM_STEP), viewportSize)}
       >
-        <AiOutlineMinus />
+        <Minus />
       </button>
       <button
         type="button"
@@ -32,7 +32,7 @@ const ZoomControls = () => {
         className="rounded-lg p-2 hover:bg-zinc-700"
         onClick={() => zoomTo(scale * (1 + ZOOM_STEP), viewportSize)}
       >
-        <AiOutlinePlus />
+        <Plus />
       </button>
       <button
         type="button"

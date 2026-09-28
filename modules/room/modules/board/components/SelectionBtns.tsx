@@ -1,6 +1,4 @@
-import { AiOutlineDelete } from 'react-icons/ai';
-import { BsArrowsMove } from 'react-icons/bs';
-import { FiCopy } from 'react-icons/fi';
+import { Copy, Move, Trash2 } from 'lucide-react';
 
 import { toScreen } from '@/common/lib/coords';
 import { useOptionsValue } from '@/common/store/options.store';
@@ -36,7 +34,7 @@ const SelectionBtns = () => {
           if (ref && selectionRefs.current) selectionRefs.current[0] = ref;
         }}
       >
-        <BsArrowsMove />
+        <Move />
       </button>
       <button
         type="button"
@@ -45,7 +43,7 @@ const SelectionBtns = () => {
           if (ref && selectionRefs.current) selectionRefs.current[1] = ref;
         }}
       >
-        <FiCopy />
+        <Copy />
       </button>
       <button
         type="button"
@@ -54,7 +52,7 @@ const SelectionBtns = () => {
           if (ref && selectionRefs.current) selectionRefs.current[2] = ref;
         }}
       >
-        <AiOutlineDelete />
+        <Trash2 />
       </button>
     </div>
   );

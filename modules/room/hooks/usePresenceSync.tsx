@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 import { socket } from '@/common/lib/socket';
 import { usePresenceStore } from '@/common/store/presence.store';
@@ -48,7 +48,7 @@ export const usePresenceSync = () => {
             Follow
           </button>
         </div>,
-        { position: 'top-center', autoClose: 8000 },
+        { duration: 8000 },
       );
     };
 

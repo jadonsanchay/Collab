@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 
 import { AnimatePresence, motion } from 'framer-motion';
 import { RgbaColorPicker } from 'react-colorful';
-import { BsPaletteFill } from 'react-icons/bs';
+import { Palette } from 'lucide-react';
 import { useClickAway } from 'react-use';
 
 import { useOptions } from '@/common/store/options.store';
@@ -26,7 +26,7 @@ const ColorPicker = () => {
         onClick={() => setOpened(!opened)}
         disabled={options.mode === 'select'}
       >
-        <BsPaletteFill />
+        <Palette />
       </button>
       <AnimatePresence>
         {opened && (

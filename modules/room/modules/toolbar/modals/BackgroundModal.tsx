@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-import { AiOutlineClose } from 'react-icons/ai';
+import { X } from 'lucide-react';
 
 import { useBackground, useSetBackground } from '@/common/store/background.store';
 import { useModal } from '@/modules/modal';
@@ -49,7 +49,7 @@ const BackgroundModal = () => {
         onClick={closeModal}
         className="absolute right-5 top-5"
       >
-        <AiOutlineClose />
+        <X />
       </button>
       <h2 className="mb-4 text-2xl font-bold">Choose background</h2>
       <div className="grid gap-5 sm:grid-cols-2">

@@ -1,9 +1,7 @@
 import { useRef, useState } from 'react';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { BiRectangle } from 'react-icons/bi';
-import { BsCircle } from 'react-icons/bs';
-import { CgShapeZigzag } from 'react-icons/cg';
+import { Circle, RectangleHorizontal, Waves } from 'lucide-react';
 import { useClickAway } from 'react-use';
 
 import { useOptions } from '@/common/store/options.store';
@@ -37,9 +35,9 @@ const ShapeSelector = () => {
         disabled={options.mode === 'select'}
         onClick={() => setOpened((prev) => !prev)}
       >
-        {options.shape === 'circle' && <BsCircle />}
-        {options.shape === 'rect' && <BiRectangle />}
-        {options.shape === 'line' && <CgShapeZigzag />}
+        {options.shape === 'circle' && <Circle />}
+        {options.shape === 'rect' && <RectangleHorizontal />}
+        {options.shape === 'line' && <Waves />}
       </button>
 
       <AnimatePresence>
@@ -56,7 +54,7 @@ const ShapeSelector = () => {
               className="btn-icon text-2xl"
               onClick={() => handleShapeChange('line')}
             >
-              <CgShapeZigzag />
+              <Waves />
             </button>
 
             <button
@@ -64,7 +62,7 @@ const ShapeSelector = () => {
               className="btn-icon text-2xl"
               onClick={() => handleShapeChange('rect')}
             >
-              <BiRectangle />
+              <RectangleHorizontal />
             </button>
 
             <button
@@ -72,7 +70,7 @@ const ShapeSelector = () => {
               className="btn-icon text-2xl"
               onClick={() => handleShapeChange('circle')}
             >
-              <BsCircle />
+              <Circle />
             </button>
           </motion.div>
         )}

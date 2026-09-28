@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { toast } from 'react-toastify';
+import { toast } from 'sonner';
 
 import { v4 } from 'uuid';
 
@@ -207,10 +207,7 @@ export const useSelection = () => {
           }),
         ])
         .then(() => {
-          toast('Copied to clipboard!', {
-            position: 'top-center',
-            theme: 'colored',
-          });
+          toast('Copied to clipboard!');
         });
   }, [makeBlob]);
 
@@ -262,11 +259,7 @@ export const useSelection = () => {
            * are gone and nothing ever comes back to replace them.
            */
           if (base64.length > MAX_IMAGE_BASE64_LENGTH) {
-            toast('That selection is too large to move.', {
-              position: 'top-center',
-              theme: 'colored',
-              type: 'warning',
-            });
+            toast.warning('That selection is too large to move.');
 
             return;
           }

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { motion, useMotionValue } from 'framer-motion';
-import { AiOutlineCheck, AiOutlineClose } from 'react-icons/ai';
+import { Check, X } from 'lucide-react';
 
 import { v4 } from 'uuid';
 
@@ -72,14 +72,14 @@ const MoveImage = () => {
           className="rounded-full bg-gray-200 p-2"
           onClick={handlePlaceImage}
         >
-          <AiOutlineCheck />
+          <Check />
         </button>
         <button
           type="button"
           className="rounded-full bg-gray-200 p-2"
           onClick={() => setMoveImage({ base64: '' })}
         >
-          <AiOutlineClose />
+          <X />
         </button>
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element -- pasted images are base64 data URIs with no known dimensions, so next/image isn't applicable */}
