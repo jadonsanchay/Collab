@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { v4 } from 'uuid';
 
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
-import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { toBoard } from '@/common/lib/coords';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
@@ -18,67 +17,46 @@ import {
 } from '@/common/store/drawing.store';
 import { Move } from '@/common/types/global';
 
-import { drawRect, drawCircle, drawLine } from '../helpers/Canvas.helpers';
-import { useCtx } from './useCtx';
-
-// Module-level (not state/ref) so the in-progress stroke survives across renders without
-// re-rendering on every pointer-move — but this means only one draw-in-progress can exist
-// at a time across all instances of this hook.
-let tempImageData: ImageData | undefined;
+import { drawRect, drawCircle } from '../helpers/Canvas.helpers';
+import { useLiveCtx } from './useCtx';
 
 export const useDraw = (blocked: boolean) => {
   const options = useOptionsValue();
   const { clearSavedMoves } = useSetSavedMoves();
   const { handleAddMyMove } = useMyMoves();
   const { setSelection, clearSelection } = useSetSelection();
-  const vw = useViewportSize();
 
   const [drawing, setDrawing] = useState(false);
-  const ctx = useCtx();
+  const liveCtx = useLiveCtx();
 
   const setupCtxOptions = () => {
-    if (ctx) {
-      ctx.lineWidth = options.lineWidth;
-      ctx.strokeStyle = getStringFromRgba(options.lineColor);
-      ctx.fillStyle = getStringFromRgba(options.fillColor);
+    if (liveCtx) {
+      liveCtx.lineWidth = options.lineWidth;
+      liveCtx.strokeStyle = getStringFromRgba(options.lineColor);
+      liveCtx.fillStyle = getStringFromRgba(options.fillColor);
       if (options.mode === 'eraser')
-        ctx.globalCompositeOperation = 'destination-out';
-      else ctx.globalCompositeOperation = 'source-over';
+        liveCtx.globalCompositeOperation = 'destination-out';
+      else liveCtx.globalCompositeOperation = 'source-over';
     }
   };
 
-  /**
-   * `getImageData`/`putImageData` work in the canvas's own pixel space, which
-   * never changes with zoom — only the region currently visible on screen
-   * does, so the captured offset and size both need the current scale.
-   */
-  const drawAndSet = () => {
-    const { x, y, scale } = useViewportStore.getState();
-    const boardX = toBoard(0, x, scale);
-    const boardY = toBoard(0, y, scale);
-    const width = vw.width / scale;
-    const height = vw.height / scale;
-
-    if (!tempImageData)
-      tempImageData = ctx?.getImageData(boardX, boardY, width, height);
-
-    if (tempImageData) ctx?.putImageData(tempImageData, boardX, boardY);
+  const clearLiveLayer = () => {
+    liveCtx?.clearRect(0, 0, liveCtx.canvas.width, liveCtx.canvas.height);
   };
 
   const handleStartDrawing = (x: number, y: number) => {
-    if (!ctx || blocked) return;
+    if (!liveCtx || blocked) return;
 
     const { x: vx, y: vy, scale } = useViewportStore.getState();
     const [finalX, finalY] = [toBoard(x, vx, scale), toBoard(y, vy, scale)];
 
     setDrawing(true);
     setupCtxOptions();
-    drawAndSet();
 
     if (options.shape === 'line' && options.mode !== 'select') {
-      ctx.beginPath();
-      ctx.lineTo(finalX, finalY);
-      ctx.stroke();
+      liveCtx.beginPath();
+      liveCtx.lineTo(finalX, finalY);
+      liveCtx.stroke();
     }
 
     useDrawingStore.setState((state) => ({
@@ -87,23 +65,22 @@ export const useDraw = (blocked: boolean) => {
   };
 
   const handleDraw = (x: number, y: number, shift?: boolean) => {
-    if (!ctx || !drawing || blocked) return;
+    if (!liveCtx || !drawing || blocked) return;
 
     const { x: vx, y: vy, scale } = useViewportStore.getState();
     const [finalX, finalY] = [toBoard(x, vx, scale), toBoard(y, vy, scale)];
 
-    drawAndSet();
-
     const { tempMoves } = useDrawingStore.getState();
 
+    clearLiveLayer();
+    setupCtxOptions();
+
     if (options.mode === 'select') {
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-      drawRect(ctx, tempMoves[0], finalX, finalY, false, true);
+      liveCtx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+      drawRect(liveCtx, tempMoves[0], finalX, finalY, false, true);
       useDrawingStore.setState((state) => ({
         tempMoves: [...state.tempMoves, [finalX, finalY]],
       }));
-
-      setupCtxOptions();
 
       return;
     }
@@ -111,22 +88,29 @@ export const useDraw = (blocked: boolean) => {
     switch (options.shape) {
       case 'line': {
         const points = shift ? tempMoves.slice(0, 1) : tempMoves;
+        const newPoints = [...points, [finalX, finalY] as [number, number]];
 
-        drawLine(ctx, points[0], finalX, finalY, shift);
+        // Redrawn from scratch each frame: the live layer is cleared above,
+        // so the whole accumulated path has to be re-stroked, not just the
+        // newest segment.
+        liveCtx.beginPath();
+        liveCtx.moveTo(newPoints[0][0], newPoints[0][1]);
+        newPoints.slice(1).forEach(([px, py]) => liveCtx.lineTo(px, py));
+        liveCtx.stroke();
 
-        useDrawingStore.setState({ tempMoves: [...points, [finalX, finalY]] });
+        useDrawingStore.setState({ tempMoves: newPoints });
         break;
       }
 
       case 'circle':
         useDrawingStore.setState({
-          tempCircle: drawCircle(ctx, tempMoves[0], finalX, finalY, shift),
+          tempCircle: drawCircle(liveCtx, tempMoves[0], finalX, finalY, shift),
         });
         break;
 
       case 'rect':
         useDrawingStore.setState({
-          tempSize: drawRect(ctx, tempMoves[0], finalX, finalY, shift),
+          tempSize: drawRect(liveCtx, tempMoves[0], finalX, finalY, shift),
         });
         break;
 
@@ -135,23 +119,16 @@ export const useDraw = (blocked: boolean) => {
     }
   };
 
-  const clearOnYourMove = () => {
-    drawAndSet();
-    tempImageData = undefined;
-  };
-
   const handleEndDrawing = () => {
-    if (!ctx || blocked) return;
+    if (!liveCtx || blocked) return;
 
     setDrawing(false);
-
-    ctx.closePath();
+    clearLiveLayer();
 
     const { tempMoves, tempCircle, tempSize } = useDrawingStore.getState();
 
     let addMove = true;
     if (options.mode === 'select' && tempMoves.length) {
-      clearOnYourMove();
       let x = tempMoves[0][0];
       let y = tempMoves[0][1];
       let width = tempMoves[tempMoves.length - 1][0] - x;
@@ -212,6 +189,5 @@ export const useDraw = (blocked: boolean) => {
     handleDraw,
     handleStartDrawing,
     drawing,
-    clearOnYourMove,
   };
 };

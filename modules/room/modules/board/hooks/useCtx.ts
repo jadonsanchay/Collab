@@ -1,21 +1,31 @@
-import { useEffect, useState } from 'react';
+import { RefObject, useEffect, useState } from 'react';
 
 import { useRefs } from '../../../hooks/useRefs';
 
-export const useCtx = () => {
-  const { canvasRef } = useRefs();
-
+const useCanvasCtx = (ref: RefObject<HTMLCanvasElement | null>) => {
   const [ctx, setCtx] = useState<CanvasRenderingContext2D>();
 
   useEffect(() => {
-    const newCtx = canvasRef.current?.getContext('2d');
+    const newCtx = ref.current?.getContext('2d');
 
     if (newCtx) {
       newCtx.lineJoin = 'round';
       newCtx.lineCap = 'round';
       setCtx(newCtx);
     }
-  }, [canvasRef]);
+  }, [ref]);
 
   return ctx;
+};
+
+export const useCtx = () => {
+  const { canvasRef } = useRefs();
+
+  return useCanvasCtx(canvasRef);
+};
+
+export const useLiveCtx = () => {
+  const { liveRef } = useRefs();
+
+  return useCanvasCtx(liveRef);
 };

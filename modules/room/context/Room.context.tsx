@@ -26,6 +26,7 @@ export const roomContext = createContext<{
   undoRef: RefObject<HTMLButtonElement | null>;
   redoRef: RefObject<HTMLButtonElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  liveRef: RefObject<HTMLCanvasElement | null>;
   bgRef: RefObject<HTMLCanvasElement | null>;
   selectionRefs: RefObject<HTMLButtonElement[]>;
   minimapRef: RefObject<HTMLCanvasElement | null>;
@@ -48,6 +49,7 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
   const undoRef = useRef<HTMLButtonElement>(null);
   const redoRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const liveRef = useRef<HTMLCanvasElement>(null);
   const bgRef = useRef<HTMLCanvasElement>(null);
   const minimapRef = useRef<HTMLCanvasElement>(null);
   const selectionRefs = useRef<HTMLButtonElement[]>([]);
@@ -228,6 +230,7 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       undoRef,
       redoRef,
       canvasRef,
+      liveRef,
       setMoveImage,
       moveImage,
       minimapRef,
@@ -238,6 +241,7 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       undoRef,
       redoRef,
       canvasRef,
+      liveRef,
       setMoveImage,
       moveImage,
       minimapRef,

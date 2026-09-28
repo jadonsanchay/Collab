@@ -17,7 +17,7 @@ import MiniMap from './Minimap';
 import ZoomControls from './ZoomControls';
 
 const Canvas = () => {
-  const { canvasRef, bgRef, undoRef, redoRef } = useRefs();
+  const { canvasRef, liveRef, bgRef, undoRef, redoRef } = useRefs();
   const ctx = useCtx();
 
   const x = useViewportStore((state) => state.x);
@@ -34,16 +34,11 @@ const Canvas = () => {
     handleWheel,
   } = useViewportGestures();
 
-  const {
-    handleEndDrawing,
-    handleDraw,
-    handleStartDrawing,
-    drawing,
-    clearOnYourMove,
-  } = useDraw(isPanning);
+  const { handleEndDrawing, handleDraw, handleStartDrawing, drawing } =
+    useDraw(isPanning);
   useSocketDraw(drawing);
 
-  const { handleUndo, handleRedo } = useMovesHandlers(clearOnYourMove);
+  const { handleUndo, handleRedo } = useMovesHandlers();
 
   // SETUP
   useEffect(() => {
@@ -106,6 +101,13 @@ const Canvas = () => {
             handleDraw(e.clientX, e.clientY, e.shiftKey);
           }}
           onPointerCancel={handleEndDrawing}
+        />
+
+        <canvas
+          ref={liveRef}
+          width={CANVAS_SIZE.width}
+          height={CANVAS_SIZE.height}
+          className="pointer-events-none absolute top-0 z-20"
         />
       </div>
 

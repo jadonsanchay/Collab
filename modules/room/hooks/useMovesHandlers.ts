@@ -1,23 +1,20 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 import { v4 } from 'uuid';
 
 import { isRedo, isTypingTarget, isUndo } from '@/common/lib/keyboard';
-import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
 import { useBackground } from '@/common/store/background.store';
 import { useSetSelection } from '@/common/store/options.store';
 import { useMyMoves, useRoom } from '@/common/store/room.store';
 import { useSetSavedMoves } from '@/common/store/history.store';
-import { Move } from '@/common/types/global';
 
+import { CommittedRenderer } from '../render/CommittedRenderer';
 import { useCtx } from '../modules/board/hooks/useCtx';
 import { useRefs } from './useRefs';
 import { useSelection } from '../modules/board/hooks/useSelection';
 
-let prevMovesLength = 0;
-
-export const useMovesHandlers = (clearOnYourMove: () => void) => {
+export const useMovesHandlers = () => {
   const { canvasRef, minimapRef, bgRef } = useRefs();
   const room = useRoom();
   const { handleAddMyMove, handleRemoveMyMove } = useMyMoves();
@@ -25,6 +22,8 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
   const ctx = useCtx();
   const bg = useBackground();
   const { clearSelection } = useSetSelection();
+
+  const rendererRef = useRef<CommittedRenderer | null>(null);
 
   // Sorting by the server-assigned `seq` is what makes replay deterministic
   // across clients without needing OT or a CRDT: draw moves are additive, so
@@ -78,102 +77,22 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
 
   useEffect(() => copyCanvasToSmall(), [bg, copyCanvasToSmall]);
 
-  const drawMove = (move: Move, image?: HTMLImageElement) => {
-    const { path } = move;
+  useEffect(() => {
+    if (!ctx) return undefined;
 
-    if (!ctx || !path.length) return;
+    rendererRef.current = new CommittedRenderer(ctx, copyCanvasToSmall);
 
-    const moveOptions = move.options;
+    return () => {
+      rendererRef.current = null;
+    };
+    // A fresh renderer per `ctx` instance keeps its own image cache and
+    // checkpoint scoped to the canvas it owns.
+  }, [ctx, copyCanvasToSmall]);
 
-    if (moveOptions.mode === 'select') return;
-
-    ctx.lineWidth = moveOptions.lineWidth;
-    ctx.strokeStyle = getStringFromRgba(moveOptions.lineColor);
-    ctx.fillStyle = getStringFromRgba(moveOptions.fillColor);
-    if (moveOptions.mode === 'eraser')
-      ctx.globalCompositeOperation = 'destination-out';
-    else ctx.globalCompositeOperation = 'source-over';
-
-    if (moveOptions.shape === 'image' && image)
-      ctx.drawImage(image, path[0][0], path[0][1]);
-
-    switch (moveOptions.shape) {
-      case 'line': {
-        ctx.beginPath();
-        path.forEach(([x, y]) => {
-          ctx.lineTo(x, y);
-        });
-
-        ctx.stroke();
-        ctx.closePath();
-        break;
-      }
-
-      case 'circle': {
-        const { cX, cY, radiusX, radiusY } = move.circle;
-
-        ctx.beginPath();
-        ctx.ellipse(cX, cY, radiusX, radiusY, 0, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.fill();
-        ctx.closePath();
-        break;
-      }
-
-      case 'rect': {
-        const { width, height } = move.rect;
-
-        ctx.beginPath();
-
-        ctx.rect(path[0][0], path[0][1], width, height);
-        ctx.stroke();
-        ctx.fill();
-
-        ctx.closePath();
-        break;
-      }
-
-      default:
-        break;
-    }
-
-    copyCanvasToSmall();
-  };
-
-  const drawAllMoves = async () => {
-    if (!ctx) return;
-
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-
-    const images = await Promise.all(
-      sortedMoves
-        .filter((move) => move.options.shape === 'image')
-        .map(
-          (move) =>
-            new Promise<HTMLImageElement>((resolve) => {
-              const img = new Image();
-              img.src = move.img.base64;
-              img.id = move.id;
-              img.addEventListener('load', () => resolve(img));
-            }),
-        ),
-    );
-
-    sortedMoves.forEach((move) => {
-      if (move.options.shape === 'image') {
-        const img = images.find((image) => image.id === move.id);
-        if (img) drawMove(move, img);
-      } else drawMove(move);
-    });
-
-    copyCanvasToSmall();
-  };
-
-  useSelection(drawAllMoves);
+  useSelection();
 
   useEffect(() => {
     socket.on('your_move', (move) => {
-      clearOnYourMove();
       handleAddMyMove(move);
       setTimeout(clearSelection, 100);
     });
@@ -181,30 +100,10 @@ export const useMovesHandlers = (clearOnYourMove: () => void) => {
     return () => {
       socket.off('your_move');
     };
-  }, [clearOnYourMove, clearSelection, handleAddMyMove]);
+  }, [clearSelection, handleAddMyMove]);
 
   useEffect(() => {
-    if (prevMovesLength >= sortedMoves.length || !prevMovesLength) {
-      drawAllMoves();
-    } else {
-      const lastMove = sortedMoves[sortedMoves.length - 1];
-
-      if (lastMove.options.shape === 'image') {
-        const img = new Image();
-        img.src = lastMove.img.base64;
-        img.addEventListener('load', () => drawMove(lastMove, img));
-      } else drawMove(lastMove);
-    }
-
-    return () => {
-      prevMovesLength = sortedMoves.length;
-    };
-
-    // Intentionally scoped to `sortedMoves` only: this compares the new move count against
-    // `prevMovesLength` to decide full-redraw vs. incremental-draw. drawAllMoves/drawMove are
-    // recreated every render (they close over ctx), so including them would redraw on every
-    // unrelated render, not just when new moves arrive.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    rendererRef.current?.schedule(sortedMoves);
   }, [sortedMoves]);
 
   const handleUndo = useCallback(() => {

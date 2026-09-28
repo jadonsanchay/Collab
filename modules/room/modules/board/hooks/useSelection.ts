@@ -13,7 +13,7 @@ import { Move } from '@/common/types/global';
 
 import { useMoveImage } from '../../../hooks/useMoveImage';
 import { useRefs } from '../../../hooks/useRefs';
-import { useCtx } from './useCtx';
+import { useCtx, useLiveCtx } from './useCtx';
 
 let tempSelection = {
   x: 0,
@@ -22,34 +22,40 @@ let tempSelection = {
   height: 0,
 };
 
-export const useSelection = (drawAllMoves: () => Promise<void>) => {
+export const useSelection = () => {
   const ctx = useCtx();
+  const liveCtx = useLiveCtx();
   const options = useOptionsValue();
   const { selection } = options;
   const { bgRef, selectionRefs } = useRefs();
   const { setMoveImage } = useMoveImage();
 
+  /**
+   * Drawn on the live layer, not the committed canvas: a plain clear-and-
+   * redraw, with no race against the committed renderer's own rAF-scheduled
+   * replay to work around.
+   */
   useEffect(() => {
-    const callback = async () => {
-      await drawAllMoves();
+    if (!liveCtx) return undefined;
 
-      if (ctx && selection) {
-        setTimeout(() => {
-          const { x, y, width, height } = selection;
+    const draw = () => {
+      liveCtx.clearRect(0, 0, liveCtx.canvas.width, liveCtx.canvas.height);
 
-          ctx.lineWidth = 2;
-          ctx.strokeStyle = '#000';
-          ctx.setLineDash([5, 10]);
-          ctx.globalCompositeOperation = 'source-over';
+      if (!selection) return;
 
-          ctx.beginPath();
-          ctx.rect(x, y, width, height);
-          ctx.stroke();
-          ctx.closePath();
+      const { x, y, width, height } = selection;
 
-          ctx.setLineDash([]);
-        }, 10);
-      }
+      liveCtx.lineWidth = 2;
+      liveCtx.strokeStyle = '#000';
+      liveCtx.setLineDash([5, 10]);
+      liveCtx.globalCompositeOperation = 'source-over';
+
+      liveCtx.beginPath();
+      liveCtx.rect(x, y, width, height);
+      liveCtx.stroke();
+      liveCtx.closePath();
+
+      liveCtx.setLineDash([]);
     };
 
     if (
@@ -58,16 +64,12 @@ export const useSelection = (drawAllMoves: () => Promise<void>) => {
       tempSelection.x !== selection?.x ||
       tempSelection.y !== selection?.y
     )
-      callback();
+      draw();
 
     return () => {
       if (selection) tempSelection = selection;
     };
-
-    // drawAllMoves is passed in fresh every render (not memoized by the caller), so including
-    // it here would redraw on every unrelated render instead of only on selection changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selection, ctx]);
+  }, [selection, liveCtx]);
 
   const dimension = useMemo(() => {
     if (selection) {
