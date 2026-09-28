@@ -27,6 +27,10 @@ const ChatInput = () => {
     <form className="flex w-full items-center gap-2" onSubmit={handleSubmit}>
       <input
         className="w-full rounded-xl border border-zinc-300 p-5 py-1"
+        // The input had no label of any kind, so nothing announced it to a
+        // screen reader and nothing could address it in a test.
+        aria-label="Message"
+        placeholder="Message..."
         value={msg}
         maxLength={MAX_MESSAGE_LENGTH}
         onChange={(e) => setMsg(e.target.value)}

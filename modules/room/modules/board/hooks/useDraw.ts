@@ -7,10 +7,9 @@ import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { getPos } from '@/common/lib/getPos';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
-import { useOptionsValue } from '@/common/recoil/options';
-import { useSetSelection } from '@/common/recoil/options/options.hooks';
-import { useMyMoves } from '@/common/recoil/room';
-import { useSetSavedMoves } from '@/common/recoil/savedMoves';
+import { useOptionsValue, useSetSelection } from '@/common/store/options.store';
+import { useMyMoves } from '@/common/store/room.store';
+import { useSetSavedMoves } from '@/common/store/history.store';
 import { Move } from '@/common/types/global';
 
 import { drawRect, drawCircle, drawLine } from '../helpers/Canvas.helpers';

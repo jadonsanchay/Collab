@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { AiOutlineClose } from 'react-icons/ai';
 
-import { useRoom } from '@/common/recoil/room';
+import { useRoom } from '@/common/store/room.store';
 import { useModal } from '@/modules/modal';
 
 const ShareModal = () => {

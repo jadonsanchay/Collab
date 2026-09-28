@@ -5,7 +5,7 @@ import { RgbaColorPicker } from 'react-colorful';
 import { BsPaletteFill } from 'react-icons/bs';
 import { useClickAway } from 'react-use';
 
-import { useOptions } from '@/common/recoil/options/options.hooks';
+import { useOptions } from '@/common/store/options.store';
 
 import { EntryAnimation } from '../animations/Entry.animations';
 

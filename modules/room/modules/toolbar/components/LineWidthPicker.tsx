@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { BsBorderWidth } from 'react-icons/bs';
 import { useClickAway } from 'react-use';
 
-import { useOptions } from '@/common/recoil/options';
+import { useOptions } from '@/common/store/options.store';
 
 import { EntryAnimation } from '../animations/Entry.animations';
 

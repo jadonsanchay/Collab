@@ -7,7 +7,7 @@ import { v4 } from 'uuid';
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { isCopy, isDelete, isTypingTarget } from '@/common/lib/keyboard';
 import { socket } from '@/common/lib/socket';
-import { useOptionsValue } from '@/common/recoil/options';
+import { useOptionsValue } from '@/common/store/options.store';
 import { MAX_IMAGE_BASE64_LENGTH } from '@/common/schemas/move';
 import { Move } from '@/common/types/global';
 

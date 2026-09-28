@@ -15,13 +15,17 @@ import { toast } from 'react-toastify';
 
 import { getMyUserId } from '@/common/lib/identity';
 import { socket } from '@/common/lib/socket';
-import { useSetUsers } from '@/common/recoil/room';
-import { useSetRoom, useRoom } from '@/common/recoil/room/room.hooks';
+import { useSetUsers, useSetRoom, useRoom } from '@/common/store/room.store';
+
 import { Move, User } from '@/common/types/global';
 
 export const roomContext = createContext<{
   x: MotionValue<number>;
   y: MotionValue<number>;
+  /**
+   * React 19's `useRef(null)` returns `RefObject<T | null>`, unlike React 18
+   * where `RefObject<T>` already folded in the null.
+   */
   undoRef: RefObject<HTMLButtonElement | null>;
   redoRef: RefObject<HTMLButtonElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;

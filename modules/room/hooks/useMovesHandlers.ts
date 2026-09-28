@@ -5,10 +5,10 @@ import { v4 } from 'uuid';
 import { isRedo, isTypingTarget, isUndo } from '@/common/lib/keyboard';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
-import { useBackground } from '@/common/recoil/background';
-import { useSetSelection } from '@/common/recoil/options';
-import { useMyMoves, useRoom } from '@/common/recoil/room';
-import { useSetSavedMoves } from '@/common/recoil/savedMoves';
+import { useBackground } from '@/common/store/background.store';
+import { useSetSelection } from '@/common/store/options.store';
+import { useMyMoves, useRoom } from '@/common/store/room.store';
+import { useSetSavedMoves } from '@/common/store/history.store';
 import { Move } from '@/common/types/global';
 
 import { useCtx } from '../modules/board/hooks/useCtx';

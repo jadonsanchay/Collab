@@ -6,7 +6,7 @@ import { FaChevronDown } from 'react-icons/fa';
 import { useList } from 'react-use';
 
 import { socket } from '@/common/lib/socket';
-import { useRoom } from '@/common/recoil/room';
+import { useRoom } from '@/common/store/room.store';
 import { MessageType } from '@/common/types/global';
 
 import ChatInput from './ChatInput';

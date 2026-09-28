@@ -1,5 +1,5 @@
 import { getMyUserId } from '@/common/lib/identity';
-import { useRoom } from '@/common/recoil/room';
+import { useRoom } from '@/common/store/room.store';
 
 import UserMouse from './UserMouse';
 

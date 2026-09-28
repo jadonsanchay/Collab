@@ -3,7 +3,7 @@ import { RefObject, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 import { CANVAS_SIZE } from '@/common/constants/canvasSize';
-import { useBackground } from '@/common/recoil/background';
+import { useBackground } from '@/common/store/background.store';
 
 import { useBoardPosition } from '../hooks/useBoardPosition';
 

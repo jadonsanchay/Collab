@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 
 import { socket } from '@/common/lib/socket';
-import { useSetRoomId } from '@/common/recoil/room';
+import { useSetRoomId } from '@/common/store/room.store';
 import {
   MAX_USERNAME_LENGTH,
   ROOM_ID_LENGTH,

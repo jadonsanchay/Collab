@@ -4,7 +4,7 @@ import { AiOutlineDelete } from 'react-icons/ai';
 import { BsArrowsMove } from 'react-icons/bs';
 import { FiCopy } from 'react-icons/fi';
 
-import { useOptionsValue } from '@/common/recoil/options';
+import { useOptionsValue } from '@/common/store/options.store';
 
 import { useRefs } from '../../../hooks/useRefs';
 import { useBoardPosition } from '../hooks/useBoardPosition';

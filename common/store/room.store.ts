@@ -1,42 +1,48 @@
-import { useRecoilState, useRecoilValue, useSetRecoilState } from 'recoil';
+import { create } from 'zustand';
 
-import { Move } from '@/common/types/global';
+import { ClientRoom, Move } from '@/common/types/global';
 
-import { DEFAULT_ROOM, roomAtom } from './room.atom';
-
-export const useRoom = () => {
-  const room = useRecoilValue(roomAtom);
-
-  return room;
+export const DEFAULT_ROOM: ClientRoom = {
+  id: '',
+  users: new Map(),
+  usersMoves: new Map(),
+  movesWithoutUser: [],
+  myMoves: [],
 };
 
-export const useSetRoom = () => {
-  const setRoom = useSetRecoilState(roomAtom);
+type RoomUpdater = ClientRoom | ((prev: ClientRoom) => ClientRoom);
 
-  return setRoom;
+type RoomState = {
+  room: ClientRoom;
+  setRoom: (update: RoomUpdater) => void;
 };
+
+export const useRoomStore = create<RoomState>((set) => ({
+  room: DEFAULT_ROOM,
+
+  setRoom: (update) =>
+    set((state) => ({
+      room: typeof update === 'function' ? update(state.room) : update,
+    })),
+}));
+
+export const useRoom = () => useRoomStore((state) => state.room);
+
+export const useSetRoom = () => useRoomStore((state) => state.setRoom);
 
 export const useSetRoomId = () => {
-  const setRoomId = useSetRecoilState(roomAtom);
+  const setRoom = useSetRoom();
 
   const handleSetRoomId = (id: string) => {
-    setRoomId({ ...DEFAULT_ROOM, id });
+    setRoom({ ...DEFAULT_ROOM, id });
   };
 
   return handleSetRoomId;
 };
 
 export const useSetUsers = () => {
-  const setRoom = useSetRecoilState(roomAtom);
+  const setRoom = useSetRoom();
 
-  /**
-   * Every handler below copies the Maps before changing them. They used to
-   * assign `prev.users` to a new name and mutate that, which is the same Map:
-   * Recoil then held state that had already changed underneath it, so a
-   * re-render could be skipped because the old and new values were identical
-   * by reference.
-   */
-  /** `color` is assigned by the server, so every client shows the same one. */
   const handleAddUser = (userId: string, name: string, color: string) => {
     setRoom((prev) => {
       const newUsers = new Map(prev.users);
@@ -86,8 +92,6 @@ export const useSetUsers = () => {
     setRoom((prev) => {
       const newUsersMoves = new Map(prev.usersMoves);
 
-      // Copy the array too: `pop` on the stored one would mutate the move list
-      // Recoil is still holding.
       const oldMoves = [...(prev.usersMoves.get(userId) || [])];
       oldMoves.pop();
 
@@ -97,7 +101,6 @@ export const useSetUsers = () => {
     });
   };
 
-  /** Dims a user whose socket dropped but whose place is still held. */
   const handleSetUserPresence = (userId: string, offline: boolean) => {
     setRoom((prev) => {
       const user = prev.users.get(userId);
@@ -121,7 +124,8 @@ export const useSetUsers = () => {
 };
 
 export const useMyMoves = () => {
-  const [room, setRoom] = useRecoilState(roomAtom);
+  const room = useRoom();
+  const setRoom = useSetRoom();
 
   const handleAddMyMove = (move: Move) => {
     setRoom((prev) => {

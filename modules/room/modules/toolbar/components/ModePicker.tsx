@@ -4,7 +4,7 @@ import { AiOutlineSelect } from 'react-icons/ai';
 import { BsPencilFill } from 'react-icons/bs';
 import { FaEraser } from 'react-icons/fa';
 
-import { useOptions, useSetSelection } from '@/common/recoil/options';
+import { useOptions, useSetSelection } from '@/common/store/options.store';
 
 const ModePicker = () => {
   const [options, setOptions] = useOptions();

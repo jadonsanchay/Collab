@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { AiOutlineClose } from 'react-icons/ai';
 
-import { useBackground, useSetBackground } from '@/common/recoil/background';
+import { useBackground, useSetBackground } from '@/common/store/background.store';
 import { useModal } from '@/modules/modal';
 
 const BackgroundModal = () => {

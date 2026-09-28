@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { EventEmitter } from 'events';
-import { act, render } from '@testing-library/react';
-import { RecoilRoot, useRecoilValue } from 'recoil';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { roomAtom } from '@/common/recoil/room/room.atom';
+import { DEFAULT_ROOM, useRoom, useRoomStore } from '@/common/store/room.store';
 import type { ClientRoom, Move } from '@/common/types/global';
 
 import { makeMove } from '@/server/testing/fixtures';
@@ -35,23 +34,14 @@ const renderHook = (drawing: boolean) => {
 
   const Probe = ({ isDrawing }: { isDrawing: boolean }) => {
     useSocketDraw(isDrawing);
-    seen.current = useRecoilValue(roomAtom);
+    seen.current = useRoom();
 
     return null;
   };
 
-  const view = render(
-    <RecoilRoot>
-      <Probe isDrawing={drawing} />
-    </RecoilRoot>,
-  );
+  const view = render(<Probe isDrawing={drawing} />);
 
-  const rerender = (isDrawing: boolean) =>
-    view.rerender(
-      <RecoilRoot>
-        <Probe isDrawing={isDrawing} />
-      </RecoilRoot>,
-    );
+  const rerender = (isDrawing: boolean) => view.rerender(<Probe isDrawing={isDrawing} />);
 
   return { seen, rerender, unmount: view.unmount };
 };
@@ -67,7 +57,15 @@ const movesOf = (room: ClientRoom | null, userId: string) =>
 describe('useSocketDraw', () => {
   beforeEach(() => {
     fakeSocket.removeAllListeners();
+    useRoomStore.setState({ room: DEFAULT_ROOM });
   });
+
+  /**
+   * Unlike the old `RecoilRoot` per render, the Zustand store is a global
+   * singleton: a Probe left mounted from a previous test would keep its
+   * socket listeners live and write into the next test's store.
+   */
+  afterEach(cleanup);
 
   it('applies remote moves straight away when not drawing', () => {
     const { seen } = renderHook(false);

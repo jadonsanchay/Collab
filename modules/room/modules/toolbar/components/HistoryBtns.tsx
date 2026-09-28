@@ -1,7 +1,7 @@
 import { FaRedo, FaUndo } from 'react-icons/fa';
 
-import { useMyMoves } from '@/common/recoil/room';
-import { useSavedMoves } from '@/common/recoil/savedMoves';
+import { useMyMoves } from '@/common/store/room.store';
+import { useSavedMoves } from '@/common/store/history.store';
 
 import { useRefs } from '../../../hooks/useRefs';
 

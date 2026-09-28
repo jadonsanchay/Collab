@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { BsCursorFill } from 'react-icons/bs';
 
 import { socket } from '@/common/lib/socket';
-import { useRoom } from '@/common/recoil/room';
+import { useRoom } from '@/common/store/room.store';
 
 import { useBoardPosition } from '../hooks/useBoardPosition';
 

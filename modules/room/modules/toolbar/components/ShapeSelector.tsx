@@ -6,7 +6,7 @@ import { BsCircle } from 'react-icons/bs';
 import { CgShapeZigzag } from 'react-icons/cg';
 import { useClickAway } from 'react-use';
 
-import { useOptions } from '@/common/recoil/options';
+import { useOptions } from '@/common/store/options.store';
 import { Shape } from '@/common/types/global';
 
 import { EntryAnimation } from '../animations/Entry.animations';

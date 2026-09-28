@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { socket } from '@/common/lib/socket';
-import { useSetUsers } from '@/common/recoil/room';
+import { useSetUsers } from '@/common/store/room.store';
 import { Move } from '@/common/types/global';
 
 export const useSocketDraw = (drawing: boolean) => {
