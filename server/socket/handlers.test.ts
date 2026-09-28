@@ -294,6 +294,47 @@ describe('socket handlers', () => {
     await expect(moved).resolves.toEqual([12, 34, alice.userId]);
   });
 
+  it('relays a live stroke to others only, but stores nothing', async () => {
+    const strokeId = randomUUID();
+    const { options } = makeMove();
+
+    const started = waitFor(bob, 'live_stroke_start');
+    alice.emit('stroke_start', strokeId, options, [1, 1]);
+    await expect(started).resolves.toEqual([
+      alice.userId,
+      strokeId,
+      options,
+      [1, 1],
+    ]);
+
+    const pointsReceived = waitFor(bob, 'live_stroke_points');
+    alice.emit('stroke_points', strokeId, [
+      [2, 2],
+      [3, 3],
+    ]);
+    await expect(pointsReceived).resolves.toEqual([
+      alice.userId,
+      strokeId,
+      [
+        [2, 2],
+        [3, 3],
+      ],
+    ]);
+
+    const ended = waitFor(bob, 'live_stroke_end');
+    alice.emit('stroke_end', strokeId);
+    await expect(ended).resolves.toEqual([alice.userId, strokeId]);
+
+    // Purely a relay: the room's stored moves are untouched by any of it.
+    expect(rooms.get(roomId)?.usersMoves.get(alice.userId)).toEqual([]);
+  });
+
+  it('does not echo a live stroke back to its sender', async () => {
+    alice.emit('stroke_start', randomUUID(), makeMove().options, [1, 1]);
+
+    await expectNoEvent(alice, 'live_stroke_start');
+  });
+
   it('keeps the moves of a user who leaves, and tells the room', async () => {
     const departing = await connect();
     const joined = waitFor(departing, 'joined');

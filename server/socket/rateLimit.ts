@@ -14,6 +14,9 @@ const limiters = {
   draw: new RateLimiterMemory({ points: 20, duration: 1 }),
   mouse_move: new RateLimiterMemory({ points: 30, duration: 1 }),
   send_msg: new RateLimiterMemory({ points: 5, duration: 1 }),
+  // One frame's worth of points, batched client-side, arriving well under
+  // 60 times a second in practice.
+  stroke_points: new RateLimiterMemory({ points: 60, duration: 1 }),
   // Room churn is the expensive one: each create allocates a room that lives
   // until everyone leaves, so creates and joins share a slower budget.
   room_entry: new RateLimiterMemory({ points: 5, duration: 10 }),

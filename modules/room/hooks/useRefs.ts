@@ -8,6 +8,7 @@ export const useRefs = () => {
     bgRef,
     canvasRef,
     liveRef,
+    remoteLiveRef,
     minimapRef,
     redoRef,
     selectionRefs,
@@ -19,6 +20,7 @@ export const useRefs = () => {
     bgRef,
     canvasRef,
     liveRef,
+    remoteLiveRef,
     minimapRef,
     selectionRefs,
   };

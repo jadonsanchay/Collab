@@ -29,3 +29,9 @@ export const useLiveCtx = () => {
 
   return useCanvasCtx(liveRef);
 };
+
+export const useRemoteLiveCtx = () => {
+  const { remoteLiveRef } = useRefs();
+
+  return useCanvasCtx(remoteLiveRef);
+};

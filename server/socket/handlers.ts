@@ -8,6 +8,9 @@ import {
   mouseMoveSchema,
   rejoinRoomSchema,
   sendMsgSchema,
+  strokeEndSchema,
+  strokePointsSchema,
+  strokeStartSchema,
 } from '@/common/schemas/events';
 import type {
   ClientToServerEvents,
@@ -266,6 +269,68 @@ export const registerSocketHandlers = (
 
         io.to(socket.id).emit('your_move', result.move);
         socket.broadcast.to(roomId).emit('user_draw', result.move, userId);
+      }),
+    );
+
+    socket.on(
+      'stroke_start',
+      safeHandler('stroke_start', async (strokeId, options, from) => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        if (!(await withinLimit('stroke_points', userId))) return;
+
+        const parsed = strokeStartSchema.safeParse({ strokeId, options, from });
+        if (!parsed.success) return;
+
+        socket.broadcast
+          .to(roomId)
+          .volatile.emit(
+            'live_stroke_start',
+            userId,
+            parsed.data.strokeId,
+            parsed.data.options,
+            parsed.data.from,
+          );
+      }),
+    );
+
+    socket.on(
+      'stroke_points',
+      safeHandler('stroke_points', async (strokeId, points) => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        // Deliberately quiet: this arrives up to 60 times a second, and a
+        // warn per throttled or malformed batch would drown the log.
+        if (!(await withinLimit('stroke_points', userId))) return;
+
+        const parsed = strokePointsSchema.safeParse({ strokeId, points });
+        if (!parsed.success) return;
+
+        socket.broadcast
+          .to(roomId)
+          .volatile.emit(
+            'live_stroke_points',
+            userId,
+            parsed.data.strokeId,
+            parsed.data.points,
+          );
+      }),
+    );
+
+    socket.on(
+      'stroke_end',
+      safeHandler('stroke_end', (strokeId) => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        const parsed = strokeEndSchema.safeParse({ strokeId });
+        if (!parsed.success) return;
+
+        socket.broadcast
+          .to(roomId)
+          .volatile.emit('live_stroke_end', userId, parsed.data.strokeId);
       }),
     );
 

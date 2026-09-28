@@ -96,3 +96,4 @@ export type CtxMode = z.infer<typeof ctxModeSchema>;
 export type CtxOptions = z.infer<typeof ctxOptionsSchema>;
 export type Move = z.infer<typeof moveSchema>;
 export type DrawPayload = z.infer<typeof drawPayloadSchema>;
+export type Point = z.infer<typeof pointSchema>;

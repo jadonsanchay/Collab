@@ -1,4 +1,4 @@
-import type { Move } from '../schemas/move';
+import type { CtxOptions, Move, Point } from '../schemas/move';
 
 /**
  * The drawing types are derived from the Zod schemas in `common/schemas/` so
@@ -11,6 +11,7 @@ export type {
   CtxOptions,
   DrawPayload,
   Move,
+  Point,
   Shape,
 } from '../schemas/move';
 
@@ -87,6 +88,22 @@ export interface ServerToClientEvents {
    * for events where silence would look like a bug to the person who acted.
    */
   rate_limited: (event: string) => void;
+  /**
+   * A remote stroke still in progress. `strokeId` equals the `clientId` the
+   * eventual `draw`/`user_draw` will carry, so a receiver removes the live
+   * preview once the committed move for it arrives (or after a timeout if it
+   * never does). All three are volatile: the server relays and stores
+   * nothing, so a dropped packet just means a slightly less smooth preview,
+   * never a wrong committed board.
+   */
+  live_stroke_start: (
+    userId: string,
+    strokeId: string,
+    options: CtxOptions,
+    from: Point,
+  ) => void;
+  live_stroke_points: (userId: string, strokeId: string, points: Point[]) => void;
+  live_stroke_end: (userId: string, strokeId: string) => void;
 }
 
 export interface ClientToServerEvents {
@@ -104,4 +121,11 @@ export interface ClientToServerEvents {
   rejoin_room: (roomId: string, lastSeq: number) => void;
   leave_room: () => void;
   send_msg: (msg: string) => void;
+  /**
+   * A stroke's live preview, relayed to everyone else in the room but never
+   * stored: the committed `draw` that follows is the source of truth.
+   */
+  stroke_start: (strokeId: string, options: CtxOptions, from: Point) => void;
+  stroke_points: (strokeId: string, points: Point[]) => void;
+  stroke_end: (strokeId: string) => void;
 }

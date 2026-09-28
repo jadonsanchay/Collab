@@ -19,6 +19,7 @@ import { Move } from '@/common/types/global';
 
 import { drawRect, drawCircle } from '../helpers/Canvas.helpers';
 import { useLiveCtx } from './useCtx';
+import { useLiveStrokeBroadcast } from './useLiveStrokeBroadcast';
 
 export const useDraw = (blocked: boolean) => {
   const options = useOptionsValue();
@@ -28,6 +29,7 @@ export const useDraw = (blocked: boolean) => {
 
   const [drawing, setDrawing] = useState(false);
   const liveCtx = useLiveCtx();
+  const liveStroke = useLiveStrokeBroadcast();
 
   const setupCtxOptions = () => {
     if (liveCtx) {
@@ -59,8 +61,19 @@ export const useDraw = (blocked: boolean) => {
       liveCtx.stroke();
     }
 
+    let { strokeId } = useDrawingStore.getState();
+
+    if (options.mode !== 'select') {
+      // Generated once per stroke and reused as the eventual `draw` move's
+      // `clientId`, so a receiver can match this preview to the committed
+      // move that replaces it.
+      strokeId = v4();
+      liveStroke.start(strokeId, options, [finalX, finalY]);
+    }
+
     useDrawingStore.setState((state) => ({
       tempMoves: [...state.tempMoves, [finalX, finalY]],
+      strokeId,
     }));
   };
 
@@ -71,6 +84,8 @@ export const useDraw = (blocked: boolean) => {
     const [finalX, finalY] = [toBoard(x, vx, scale), toBoard(y, vy, scale)];
 
     const { tempMoves } = useDrawingStore.getState();
+
+    if (options.mode !== 'select') liveStroke.addPoint([finalX, finalY]);
 
     clearLiveLayer();
     setupCtxOptions();
@@ -125,7 +140,10 @@ export const useDraw = (blocked: boolean) => {
     setDrawing(false);
     clearLiveLayer();
 
-    const { tempMoves, tempCircle, tempSize } = useDrawingStore.getState();
+    const { tempMoves, tempCircle, tempSize, strokeId } =
+      useDrawingStore.getState();
+
+    if (options.mode !== 'select') liveStroke.end();
 
     let addMove = true;
     if (options.mode === 'select' && tempMoves.length) {
@@ -159,9 +177,11 @@ export const useDraw = (blocked: boolean) => {
 
     const move: Move = {
       ...DEFAULT_MOVE,
-      // Identifies this move across a resend, so a retry is recognised by the
-      // server instead of drawn twice.
-      clientId: v4(),
+      // Reuses the live-stroke's id when there was one, so a receiver's
+      // preview is recognised as replaced by this move rather than lingering
+      // until its timeout. Falls back to a fresh id for a select-mode move,
+      // which never broadcast a live stroke in the first place.
+      clientId: strokeId ?? v4(),
       rect: {
         ...tempSize,
       },
@@ -176,6 +196,7 @@ export const useDraw = (blocked: boolean) => {
       tempMoves: [],
       tempCircle: DEFAULT_TEMP_CIRCLE,
       tempSize: DEFAULT_TEMP_SIZE,
+      strokeId: null,
     });
 
     if (options.mode !== 'select') {

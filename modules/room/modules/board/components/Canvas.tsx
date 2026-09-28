@@ -10,6 +10,7 @@ import { useMovesHandlers } from '../../../hooks/useMovesHandlers';
 import { useRefs } from '../../../hooks/useRefs';
 import { useCtx } from '../hooks/useCtx';
 import { useDraw } from '../hooks/useDraw';
+import { useLiveStrokes } from '../hooks/useLiveStrokes';
 import { useSocketDraw } from '../hooks/useSocketDraw';
 import { useViewportGestures } from '../hooks/useViewportGestures';
 import Background from './Background';
@@ -17,7 +18,8 @@ import MiniMap from './Minimap';
 import ZoomControls from './ZoomControls';
 
 const Canvas = () => {
-  const { canvasRef, liveRef, bgRef, undoRef, redoRef } = useRefs();
+  const { canvasRef, liveRef, remoteLiveRef, bgRef, undoRef, redoRef } =
+    useRefs();
   const ctx = useCtx();
 
   const x = useViewportStore((state) => state.x);
@@ -39,6 +41,7 @@ const Canvas = () => {
   useSocketDraw(drawing);
 
   const { handleUndo, handleRedo } = useMovesHandlers();
+  useLiveStrokes();
 
   // SETUP
   useEffect(() => {
@@ -101,6 +104,13 @@ const Canvas = () => {
             handleDraw(e.clientX, e.clientY, e.shiftKey);
           }}
           onPointerCancel={handleEndDrawing}
+        />
+
+        <canvas
+          ref={remoteLiveRef}
+          width={CANVAS_SIZE.width}
+          height={CANVAS_SIZE.height}
+          className="pointer-events-none absolute top-0 z-[15]"
         />
 
         <canvas

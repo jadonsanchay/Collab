@@ -9,6 +9,13 @@ type DrawingState = {
   tempMoves: Point[];
   tempCircle: typeof DEFAULT_TEMP_CIRCLE;
   tempSize: typeof DEFAULT_TEMP_SIZE;
+  /**
+   * Generated once per stroke at pointer-down, and reused as the eventual
+   * `draw` move's `clientId` — the live-stroke broadcast's `strokeId` is
+   * this same value, so a receiver can match the preview to the committed
+   * move that replaces it.
+   */
+  strokeId: string | null;
 };
 
 /**
@@ -20,4 +27,5 @@ export const useDrawingStore = create<DrawingState>(() => ({
   tempMoves: [],
   tempCircle: DEFAULT_TEMP_CIRCLE,
   tempSize: DEFAULT_TEMP_SIZE,
+  strokeId: null,
 }));
