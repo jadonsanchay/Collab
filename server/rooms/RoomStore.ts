@@ -280,6 +280,60 @@ export class RoomStore {
     return true;
   }
 
+  /**
+   * A guest signed in: everything in memory under the old id becomes the
+   * account's, in every loaded room. The persistent record is merged
+   * separately; this keeps the rooms people are looking at right now in step.
+   */
+  reattribute(fromUserId: string, toUserId: string) {
+    if (fromUserId === toUserId) return;
+
+    // Looked up by id inside the loop rather than taken as the callback's
+    // parameter: the room record is mutated in place, and the lint rule
+    // against mutating parameters is one worth keeping everywhere else.
+    [...this.rooms.keys()].forEach((roomId) => {
+      const room = this.rooms.get(roomId);
+      if (!room) return;
+
+      const relabel = (move: Move): Move =>
+        move.userId === fromUserId ? { ...move, userId: toUserId } : move;
+
+      room.drawed = room.drawed.map(relabel);
+
+      const fromMoves = room.usersMoves.get(fromUserId);
+
+      if (fromMoves) {
+        const merged = [...(room.usersMoves.get(toUserId) ?? []), ...fromMoves.map(relabel)].sort(
+          (a, b) => a.seq - b.seq,
+        );
+
+        room.usersMoves.set(toUserId, merged);
+        room.usersMoves.delete(fromUserId);
+      }
+
+      room.usersMoves.forEach((moves, userId) => {
+        room.usersMoves.set(userId, moves.map(relabel));
+      });
+
+      const fromUser = room.users.get(fromUserId);
+
+      if (fromUser) {
+        if (fromUser.finalizeTimer) clearTimeout(fromUser.finalizeTimer);
+        room.users.delete(fromUserId);
+
+        if (!room.users.has(toUserId)) {
+          room.users.set(toUserId, { ...fromUser, userId: toUserId, finalizeTimer: null });
+        }
+      }
+
+      if (room.ownerId === fromUserId) room.ownerId = toUserId;
+
+      room.chat = room.chat.map((message) =>
+        message.userId === fromUserId ? { ...message, userId: toUserId } : message,
+      );
+    });
+  }
+
   /** The move `undoMove` would remove next, without removing it. */
   peekLastMove(roomId: string, userId: string): Move | null {
     const moves = this.rooms.get(roomId)?.usersMoves.get(userId);

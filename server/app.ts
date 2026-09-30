@@ -2,6 +2,7 @@ import { createServer } from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { hostname } from 'os';
 import { createAdapter } from '@socket.io/redis-adapter';
+import { and, eq } from 'drizzle-orm';
 import express from 'express';
 import { Server } from 'socket.io';
 
@@ -12,10 +13,16 @@ import type {
 } from '@/common/types/global';
 
 import { createAiService, type AiServiceOptions } from './ai';
+import { buildAuthConfig } from './auth/authConfig';
+import { DEV_GUEST_SECRET } from './auth/guestCookie';
+import { mergeGuest } from './auth/mergeGuest';
+import { registerAuthRoutes } from './auth/routes';
+import { resolveSession } from './auth/session';
 import { BoardStore } from './boards/BoardStore';
 import type { Persistence } from './boards/persistence';
 import { loadConfig, type Config } from './config';
 import type { Database } from './db/client';
+import { users } from './db/schema';
 import { SnapshotService, type SnapshotOptions } from './jobs/snapshots';
 import type { RedisClients } from './redis';
 import { RoomStore } from './rooms/RoomStore';
@@ -122,26 +129,66 @@ export const createAppServer = ({
   // under server/ai runs and the client is told the feature does not exist.
   const ai = createAiService({ io, boards, config, options: aiOptions });
 
+  // Sign-in exists only with a database to keep accounts in and a secret to
+  // sign sessions with. Guests need neither.
+  const authConfig = database ? buildAuthConfig(config, database.db) : null;
+  const guestSecret = config.AUTH_SECRET ?? DEV_GUEST_SECRET;
+
   const features: Features = {
     ai: ai !== null,
     rewind: config.REWIND_ENABLED,
+    auth: authConfig !== null,
+    persistent: boards.persistent,
     // Only meaningful once there is more than one node to tell apart.
     ...(redis ? { node: config.NODE_ID ?? hostname() } : {}),
   };
 
   // Order matters: identity runs as middleware, so every handler can rely on
   // socket.data.userId being present and valid.
-  registerIdentity(io);
-  registerSocketHandlers(io, boards, { ai, features, storage });
+  registerIdentity(io, {
+    resolveSession: authConfig
+      ? (cookieHeader) => resolveSession(cookieHeader, config.AUTH_SECRET as string)
+      : undefined,
+    isAccountId: database
+      ? async (userId) => {
+          const [row] = await database.db
+            .select({ id: users.id })
+            .from(users)
+            .where(and(eq(users.id, userId), eq(users.isGuest, false)));
+
+          return Boolean(row);
+        }
+      : undefined,
+  });
+  registerSocketHandlers(io, boards, {
+    ai,
+    features,
+    storage,
+    mergeGuest: database ? (guestId, accountId) => mergeGuest(database.db, guestId, accountId) : undefined,
+  });
 
   app.get('/hello', async (_, res) => {
     res.send('Hello World');
   });
 
   registerUploadRoutes(app, { storage, config });
+  registerAuthRoutes(app, { config, authConfig, db: database?.db ?? null, guestSecret });
 
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));
 
-  return { app, server, io, rooms, boards, config, ai, features, redis, storage, snapshots };
+  return {
+    app,
+    server,
+    io,
+    rooms,
+    boards,
+    config,
+    ai,
+    features,
+    redis,
+    storage,
+    snapshots,
+    authConfig,
+  };
 };

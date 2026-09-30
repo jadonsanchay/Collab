@@ -18,6 +18,7 @@ import {
 import type {
   ClientToServerEvents,
   Features,
+  Identity,
   ServerToClientEvents,
 } from '@/common/types/global';
 
@@ -40,6 +41,8 @@ export type HandlerDeps = {
   features: Features;
   /** Where inline image payloads are moved to, so moves carry URLs, not bytes. */
   storage: ObjectStorage | null;
+  /** Folds a guest's record into the account it signed in with. */
+  mergeGuest?: (guestId: string, accountId: string) => Promise<void>;
 };
 
 const DEFAULT_DEPS: HandlerDeps = {
@@ -113,6 +116,31 @@ export const registerSocketHandlers = (
     // First thing a client learns: which optional features exist here. The
     // UI for a feature renders only after this says so.
     socket.emit('features', deps.features);
+
+    const identity: Identity = socket.data.account ?? {
+      userId,
+      isGuest: true,
+      name: null,
+      email: null,
+      image: null,
+    };
+
+    // A guest who just signed in: everything the guest id had becomes the
+    // account's, in the record and in the rooms loaded right now, before the
+    // client is told which id it is.
+    const claimed = socket.data.claimedGuestId;
+
+    if (claimed && deps.mergeGuest) {
+      deps
+        .mergeGuest(claimed, userId)
+        .then(() => rooms.rooms.reattribute(claimed, userId))
+        .catch((error) => {
+          logger.error({ err: error, claimed, userId }, 'guest merge failed');
+        })
+        .finally(() => socket.emit('identity', identity));
+    } else {
+      socket.emit('identity', identity);
+    }
 
     const throttled = (event: string) => {
       // Debug, not warn: hitting a limit is the system working as intended,

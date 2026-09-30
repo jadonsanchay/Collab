@@ -76,8 +76,15 @@ const envSchema = z.object({
   SNAPSHOT_EVERY: z.coerce.number().int().positive().default(500),
   /** The thumbnail re-renders this long after the last activity. */
   THUMBNAIL_DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(60_000),
-  /** Signs presigned local upload URLs and guest cookies. Required in production. */
+  /** Signs presigned local upload URLs, guest cookies and sessions. Required for sign-in. */
   AUTH_SECRET: z.string().min(16).optional(),
+  /** OAuth providers. Each is on when both of its values are set. */
+  AUTH_GOOGLE_ID: z.string().min(1).optional(),
+  AUTH_GOOGLE_SECRET: z.string().min(1).optional(),
+  AUTH_GITHUB_ID: z.string().min(1).optional(),
+  AUTH_GITHUB_SECRET: z.string().min(1).optional(),
+  /** An email-only "dev login" provider for local work and tests. Never in production. */
+  AUTH_DEV_LOGIN: z.stringbool().default(false),
 });
 
 export type Config = z.infer<typeof envSchema>;

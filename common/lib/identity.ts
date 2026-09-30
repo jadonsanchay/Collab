@@ -9,6 +9,10 @@ let cached: string | null = null;
  * dropped Wi-Fi connection made you a different person, orphaning your moves
  * and your colour. This id survives reconnects and reloads, which is what lets
  * the server hand the same session back.
+ *
+ * For a guest this is the identity. For a signed-in user the server answers
+ * the handshake with the account id and the client adopts it here, so
+ * everything keyed by "me" agrees with the server.
  */
 export const getMyUserId = (): string => {
   if (cached) return cached;
@@ -31,4 +35,25 @@ export const getMyUserId = (): string => {
   cached = created;
 
   return created;
+};
+
+/** Adopts the id the server resolved for this connection. */
+export const setMyUserId = (userId: string) => {
+  cached = userId;
+
+  if (typeof window !== 'undefined') window.localStorage.setItem(STORAGE_KEY, userId);
+};
+
+/**
+ * Forgets the current id and mints a fresh one: after signing out, or when
+ * the server refuses the stored id because it belongs to an account.
+ */
+export const resetMyUserId = (): string => {
+  cached = null;
+
+  if (typeof window === 'undefined') return '';
+
+  window.localStorage.removeItem(STORAGE_KEY);
+
+  return getMyUserId();
 };

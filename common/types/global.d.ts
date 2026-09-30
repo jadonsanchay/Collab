@@ -28,8 +28,26 @@ export type { AiKind, AiRequest, AiStatus, BoardRect } from '../schemas/ai';
 export interface Features {
   ai: boolean;
   rewind: boolean;
+  /** Sign-in exists on this server. Guests work either way. */
+  auth?: boolean;
+  /** Boards outlive the process: the dashboard and templates make sense. */
+  persistent?: boolean;
   /** Which node answered, once there is more than one (Phase 3). */
   node?: string;
+}
+
+/**
+ * Who the server decided this connection is. Sent once per connection,
+ * right after `features`. A guest keeps the browser's stable id; a signed-in
+ * user gets their account id, which the client adopts so everything it
+ * keys by "me" agrees with the server.
+ */
+export interface Identity {
+  userId: string;
+  isGuest: boolean;
+  name: string | null;
+  email: string | null;
+  image: string | null;
 }
 
 /** Progress of one AI request, broadcast to the whole room. */
@@ -149,6 +167,8 @@ export interface ServerToClientEvents {
   moves_removed: (moveIds: string[]) => void;
   /** Sent once on connect. See `Features`. */
   features: (features: Features) => void;
+  /** Sent once on connect, after `features`. See `Identity`. */
+  identity: (identity: Identity) => void;
   ai_status: (update: AiStatusUpdate) => void;
 }
 
