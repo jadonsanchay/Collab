@@ -49,7 +49,7 @@ const start = async () => {
       : []),
   ];
 
-  const { server, boards, snapshots } = createAppServer({
+  const { server, boards, snapshots, vectorDocs } = createAppServer({
     nextHandler,
     config,
     persistence: persisted?.persistence ?? null,
@@ -73,6 +73,7 @@ const start = async () => {
 
     try {
       snapshots?.stop();
+      await vectorDocs.stop();
       await boards.stop();
       await redis?.close();
     } finally {

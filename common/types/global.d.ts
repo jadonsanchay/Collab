@@ -22,6 +22,19 @@ export type {
 export type { AiKind, AiRequest, AiStatus, BoardRect } from '../schemas/ai';
 export type { GrantableRole, Role } from '../constants/roles';
 
+/**
+ * Which pipeline renders a board. `raster` is the Phase 0 to 3 move log on
+ * a fixed canvas; `vector` is the Phase 4 object document synced with Yjs.
+ * Decided at creation and stored with the board.
+ */
+export type BoardEngine = 'raster' | 'vector';
+
+/** Options a client may send with `create_room`. All optional and additive. */
+export interface CreateRoomOptions {
+  title?: string;
+  engine?: BoardEngine;
+}
+
 /** Why a join was refused, when the reason is worth telling the user. */
 export type JoinRefusal = 'not_found' | 'full' | 'forbidden';
 
@@ -45,6 +58,8 @@ export interface Features {
   persistent?: boolean;
   /** A call can be joined from this board (LiveKit configured). */
   rtc?: boolean;
+  /** Vector boards can be created here (Phase 4). */
+  vector?: boolean;
   /** Which node answered, once there is more than one (Phase 3). */
   node?: string;
 }
@@ -102,11 +117,14 @@ export type Room = {
   users: Map<string, User>;
   title?: string;
   chat?: ChatMessage[];
+  engine?: BoardEngine;
 };
 
 export interface ClientRoom {
   id: string;
   title?: string;
+  /** Which board component to mount. Raster until the snapshot says otherwise. */
+  engine?: BoardEngine;
   /** What this client may do here, as the server said on join. */
   myRole?: Role;
   usersMoves: Map<string, Move[]>;
@@ -202,7 +220,7 @@ export interface ClientToServerEvents {
   check_room: (roomId: string) => void;
   draw: (move: Move) => void;
   undo: () => void;
-  create_room: (username: string) => void;
+  create_room: (username: string, options?: CreateRoomOptions) => void;
   join_room: (room: string, username: string) => void;
   joined_room: () => void;
   /**

@@ -5,6 +5,7 @@ import { canChat, canDraw, canManage, canView } from '@/common/constants/roles';
 import { aiRequestSchema, aiUndoSchema } from '@/common/schemas/ai';
 import {
   checkRoomSchema,
+  createRoomOptionsSchema,
   createRoomSchema,
   cursorSchema,
   drawSchema,
@@ -218,21 +219,28 @@ export const registerSocketHandlers = (
 
     socket.on(
       'create_room',
-      safeHandler('create_room', async (username) => {
+      safeHandler('create_room', async (username, options) => {
         if (!(await withinLimit('room_entry', userId))) {
           throttled('create_room');
           return;
         }
 
         const parsed = createRoomSchema.safeParse(username);
+        const parsedOptions = createRoomOptionsSchema.safeParse(options);
 
-        if (!parsed.success) {
-          dropped('create_room', parsed.error);
+        if (!parsed.success || !parsedOptions.success) {
+          dropped('create_room', parsed.success ? parsedOptions.error! : parsed.error);
           return;
         }
 
         // parsed.data is the sanitized name: trimmed, control characters gone.
-        const { roomId } = await rooms.create(userId, parsed.data, socket.id);
+        const { roomId } = await rooms.create(
+          userId,
+          parsed.data,
+          socket.id,
+          parsedOptions.data?.title,
+          parsedOptions.data?.engine ?? 'raster',
+        );
 
         socket.join(roomId);
 

@@ -22,7 +22,7 @@ describe('DbPersistence', () => {
   });
 
   it('creates the board with its owner as a guest user and an owner membership', async () => {
-    await persistence.createRoom('room0001', { title: 'Retro', ownerId: alice, ownerName: 'Alice' });
+    await persistence.createRoom('room0001', { title: 'Retro', ownerId: alice, ownerName: 'Alice', engine: 'raster' });
 
     const [owner] = await database.db.select().from(users).where(eq(users.id, alice));
     const [board] = await database.db.select().from(boards).where(eq(boards.id, 'room0001'));
@@ -36,7 +36,7 @@ describe('DbPersistence', () => {
     expect(members).toEqual([expect.objectContaining({ userId: alice, role: 'owner' })]);
 
     // Creating twice is harmless.
-    await persistence.createRoom('room0001', { title: 'Retro', ownerId: alice, ownerName: 'Alice' });
+    await persistence.createRoom('room0001', { title: 'Retro', ownerId: alice, ownerName: 'Alice', engine: 'raster' });
   });
 
   it('flushes buffered moves and loads them back in sequence order', async () => {

@@ -1,4 +1,5 @@
 import type {
+  BoardEngine,
   ChatMessage,
   DrawPayload,
   Move,
@@ -96,8 +97,9 @@ export class BoardStore {
     username: string,
     socketId: string,
     title?: string,
+    engine: BoardEngine = 'raster',
   ): Promise<{ roomId: string; user: RoomUser }> {
-    const created = this.rooms.create(userId, username, socketId, { title });
+    const created = this.rooms.create(userId, username, socketId, { title, engine });
 
     if (this.persistence) {
       const room = this.rooms.get(created.roomId);
@@ -107,6 +109,7 @@ export class BoardStore {
           title: room?.title ?? title ?? '',
           ownerId: userId,
           ownerName: username,
+          engine,
         });
       } catch (error) {
         // The room still works for this session; it just will not survive a
@@ -123,8 +126,13 @@ export class BoardStore {
    * socket yet, held in the grace window so their first visit rejoins rather
    * than joins. The owner's colour and place are theirs when they arrive.
    */
-  async createDetached(ownerId: string, ownerName: string, title?: string): Promise<string> {
-    const { roomId } = await this.create(ownerId, ownerName, '', title);
+  async createDetached(
+    ownerId: string,
+    ownerName: string,
+    title?: string,
+    engine: BoardEngine = 'raster',
+  ): Promise<string> {
+    const { roomId } = await this.create(ownerId, ownerName, '', title, engine);
 
     this.rooms.markOffline(roomId, ownerId);
 

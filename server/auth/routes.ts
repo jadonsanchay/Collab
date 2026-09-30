@@ -10,7 +10,7 @@ import { users } from '../db/schema';
 import { logger } from '../logger';
 import { AUTH_BASE_PATH } from './authConfig';
 import { GUEST_COOKIE, guestCookieOptions, signGuest, verifyGuest } from './guestCookie';
-import type { Identity } from './session';
+import { type Identity, resolveSession } from './session';
 
 export type AuthDeps = {
   config: Config;
@@ -40,6 +40,25 @@ export const identityFromRequest = async (req: Request, deps: AuthDeps): Promise
   }
 
   const guestId = verifyGuest(parseCookie(req.headers.cookie ?? '')[GUEST_COOKIE], deps.guestSecret);
+
+  return guestId ? { userId: guestId, isGuest: true, name: null, email: null, image: null } : null;
+};
+
+/**
+ * The same resolution from a raw `Cookie` header, for WebSocket upgrades
+ * that never pass through Express: the session JWT first, then the guest
+ * cookie.
+ */
+export const identityFromCookieHeader = async (
+  cookieHeader: string | undefined,
+  deps: AuthDeps,
+): Promise<Identity | null> => {
+  if (deps.authConfig && deps.config.AUTH_SECRET) {
+    const session = await resolveSession(cookieHeader, deps.config.AUTH_SECRET);
+    if (session) return session;
+  }
+
+  const guestId = verifyGuest(parseCookie(cookieHeader ?? '')[GUEST_COOKIE], deps.guestSecret);
 
   return guestId ? { userId: guestId, isGuest: true, name: null, email: null, image: null } : null;
 };

@@ -5,6 +5,7 @@ import { COLORS_ARRAY } from '@/common/constants/colors';
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { SNAPSHOT_USER_ID } from '@/common/constants/system';
 import type {
+  BoardEngine,
   ChatMessage,
   DrawPayload,
   Move,
@@ -32,6 +33,7 @@ export type RoomSnapshot = {
 export type HydratedRoom = {
   title: string;
   ownerId: string | null;
+  engine?: BoardEngine;
   seq: number;
   /** Every surviving move after the snapshot (or all of them), any order; all carry `userId`. */
   moves: Move[];
@@ -191,7 +193,7 @@ export class RoomStore {
     userId: string,
     username: string,
     socketId: string,
-    options: { title?: string; roomId?: string } = {},
+    options: { title?: string; roomId?: string; engine?: BoardEngine } = {},
   ): { roomId: string; user: RoomUser } {
     let roomId = options.roomId ?? '';
 
@@ -212,6 +214,7 @@ export class RoomStore {
     };
 
     this.rooms.set(roomId, {
+      engine: options.engine ?? 'raster',
       title: options.title?.trim() || DEFAULT_TITLE,
       ownerId: userId,
       chat: [],
@@ -243,6 +246,7 @@ export class RoomStore {
     const highest = drawed.reduce((max, move) => Math.max(max, move.seq), 0);
 
     const room: ServerRoom = {
+      engine: data.engine ?? 'raster',
       title: data.title || DEFAULT_TITLE,
       ownerId: data.ownerId,
       chat: data.chat.slice(-MAX_CHAT_HISTORY),

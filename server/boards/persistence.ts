@@ -1,4 +1,4 @@
-import type { ChatMessage, Move } from '@/common/types/global';
+import type { BoardEngine, ChatMessage, Move } from '@/common/types/global';
 
 import type { HydratedRoom } from '../rooms/RoomStore';
 
@@ -19,7 +19,7 @@ export interface Persistence {
   loadRoom(roomId: string): Promise<HydratedRoom | null>;
   createRoom(
     roomId: string,
-    room: { title: string; ownerId: string | null; ownerName: string },
+    room: { title: string; ownerId: string | null; ownerName: string; engine: BoardEngine },
   ): Promise<void>;
   appendMove(roomId: string, move: Move): void;
   removeMoves(roomId: string, moveIds: string[], reason: 'undo' | 'remove'): void;

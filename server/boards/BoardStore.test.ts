@@ -85,7 +85,7 @@ describe('BoardStore with persistence', () => {
 
     expect(calls[0]).toEqual({
       method: 'createRoom',
-      args: [roomId, { title: 'Untitled board', ownerId: alice, ownerName: 'Alice' }],
+      args: [roomId, { title: 'Untitled board', ownerId: alice, ownerName: 'Alice', engine: 'raster' }],
     });
   });
 

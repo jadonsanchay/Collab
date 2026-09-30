@@ -23,6 +23,16 @@ export const checkRoomSchema = roomIdSchema;
 
 export const createRoomSchema = usernameSchema;
 
+export const boardEngineSchema = z.enum(['raster', 'vector']);
+
+/** Additive options on `create_room`; an older client sends none. */
+export const createRoomOptionsSchema = z
+  .object({
+    title: z.string().max(80).optional(),
+    engine: boardEngineSchema.optional(),
+  })
+  .optional();
+
 export const joinRoomSchema = z.object({
   roomId: roomIdSchema,
   username: usernameSchema,

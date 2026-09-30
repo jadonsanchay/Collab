@@ -1,7 +1,7 @@
 import { and, desc, eq, gt, inArray, isNull, max } from 'drizzle-orm';
 import { v4 } from 'uuid';
 
-import type { ChatMessage, Move } from '@/common/types/global';
+import type { BoardEngine, ChatMessage, Move } from '@/common/types/global';
 
 import type { Database, Db } from '../db/client';
 import {
@@ -137,6 +137,7 @@ export class DbPersistence implements Persistence {
     return {
       title: board.title,
       ownerId: board.ownerId,
+      engine: (board.engine === 'vector' ? 'vector' : 'raster') as BoardEngine,
       seq: Number(highest ?? 0),
       moves: moveRows.map((row) => row.payload),
       chat: chatRows.reverse().map(toChatMessage),
@@ -146,7 +147,7 @@ export class DbPersistence implements Persistence {
 
   async createRoom(
     roomId: string,
-    room: { title: string; ownerId: string | null; ownerName: string },
+    room: { title: string; ownerId: string | null; ownerName: string; engine: BoardEngine },
   ): Promise<void> {
     await this.db.transaction(async (tx) => {
       if (room.ownerId) {
@@ -159,7 +160,7 @@ export class DbPersistence implements Persistence {
 
       await tx
         .insert(boards)
-        .values({ id: roomId, title: room.title, ownerId: room.ownerId })
+        .values({ id: roomId, title: room.title, ownerId: room.ownerId, engine: room.engine })
         .onConflictDoNothing();
 
       if (room.ownerId) {

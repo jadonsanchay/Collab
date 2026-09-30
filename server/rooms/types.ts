@@ -1,4 +1,4 @@
-import type { ChatMessage, Move, User } from '@/common/types/global';
+import type { BoardEngine, ChatMessage, Move, User } from '@/common/types/global';
 
 /**
  * A room member. Keyed by the stable `userId` from the handshake, not by
@@ -34,6 +34,8 @@ export type RoomUser = User & {
 };
 
 export type ServerRoom = {
+  /** Which pipeline this board uses; vector boards keep their content in a Yjs doc. */
+  engine: BoardEngine;
   /** Shown in the top bar; owners can rename it once boards are persisted. */
   title: string;
   /** Who created the board, or null for a board loaded without an owner. */

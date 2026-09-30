@@ -42,6 +42,7 @@
     "fractional-indexing": "^4.0.0",
     "framer-motion": "^12.4.5",
     "ioredis": "^6.0.0",
+    "lib0": "^0.2.119",
     "livekit-client": "^2.22.3",
     "livekit-server-sdk": "^2.19.1",
     "lucide-react": "^1.48.0",

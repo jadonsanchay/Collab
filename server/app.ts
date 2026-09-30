@@ -37,6 +37,9 @@ import { registerIdentity, type SocketData } from './socket/identity';
 import { resetRateLimits, enableRedisRateLimits } from './socket/rateLimit';
 import { createStorage, type ObjectStorage } from './storage';
 import { registerUploadRoutes } from './storage/routes';
+import { DbVectorPersistence } from './vector/dbPersistence';
+import { VectorDocStore } from './vector/docStore';
+import { attachVectorSync } from './vector/syncServer';
 
 /**
  * Shape of `nextApp.getRequestHandler()`. Declared structurally so tests can
@@ -100,6 +103,9 @@ export const createAppServer = ({
      * handler ever sees it.
      */
     maxHttpBufferSize: 2 * 1024 * 1024,
+    // The Yjs sync server shares this HTTP server; Socket.IO must leave
+    // upgrades for other paths alone instead of destroying them.
+    destroyUpgrade: false,
   });
 
   if (redis) {
@@ -148,12 +154,16 @@ export const createAppServer = ({
   const rtc = rtcSettings(config);
   const roster = rtc ? new CallRoster() : null;
 
+  // Vector documents: in memory, and in Postgres when there is one.
+  const vectorDocs = new VectorDocStore(database ? new DbVectorPersistence(database.db) : null);
+
   const features: Features = {
     ai: ai !== null,
     rewind: config.REWIND_ENABLED,
     auth: authConfig !== null,
     persistent: boards.persistent,
     rtc: rtc !== null,
+    vector: true,
     // Only meaningful once there is more than one node to tell apart.
     ...(redis ? { node: config.NODE_ID ?? hostname() } : {}),
   };
@@ -209,6 +219,8 @@ export const createAppServer = ({
   const authDeps = { config, authConfig, db: database?.db ?? null, guestSecret };
   registerAuthRoutes(app, authDeps);
 
+  attachVectorSync(server, { store: vectorDocs, boards, roles, auth: authDeps });
+
   if (database) {
     registerBoardRoutes(app, { db: database.db, boards, roles, auth: authDeps, io, storage });
   }
@@ -234,5 +246,6 @@ export const createAppServer = ({
     snapshots,
     authConfig,
     roles,
+    vectorDocs,
   };
 };

@@ -48,6 +48,7 @@ const settingsSchema = z
 const createBoardSchema = z.object({
   title: z.string().max(80).optional(),
   templateId: z.string().max(40).optional(),
+  engine: z.enum(['raster', 'vector']).optional(),
 });
 
 const renameSchema = z.object({ title: renameRoomSchema });
@@ -236,9 +237,19 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
     }
 
     const title = body.data.title?.trim() || (template.id === 'blank' ? undefined : template.name);
-    const roomId = await deps.boards.createDetached(identity.userId, identity.name ?? 'Anonymous', title);
+    const engine = body.data.engine ?? 'raster';
+    const roomId = await deps.boards.createDetached(
+      identity.userId,
+      identity.name ?? 'Anonymous',
+      title,
+      engine,
+    );
 
-    templateMoves(template).forEach((payload) => deps.boards.addMove(roomId, identity.userId, payload));
+    // Templates are raster moves; a vector board starts empty until Phase 4's
+    // object templates arrive.
+    if (engine === 'raster') {
+      templateMoves(template).forEach((payload) => deps.boards.addMove(roomId, identity.userId, payload));
+    }
 
     res.status(201).json({ id: roomId, title: deps.boards.get(roomId)?.title });
   });
