@@ -20,6 +20,8 @@ For deeper implementation notes (module layout, conventions, gotchas), see [CLAU
 - Sessions that survive a dropped connection: your place, colour and history are held while you reconnect
 - **Sketch, an AI teammate** (opt-in): joins the room with a cursor, cleans up a selection, draws from a prompt or an `@sketch` chat mention, and summarizes the board as stickies; its work is undoable as one action. See [docs/ai-teammate.md](docs/ai-teammate.md)
 - **Rewind**: scrub the board's history, filter by author, play it back, and export a WebM timelapse
+- **Boards that last** (with storage on): a dashboard of your boards with templates, thumbnails, rename, duplicate, star and delete; server-rendered snapshots for fast loads
+- **Accounts and roles** (with storage on): sign in with Google or GitHub, guests keep working and are merged on sign-in; owner, editor, commenter and viewer roles enforced server-side; invitation links with a role and an expiry
 
 ## Architecture
 
@@ -36,7 +38,7 @@ Collab does **not** use Next.js's own dev/prod server. `server/index.ts` is a cu
 └─────────────────────────────┘        └──────────────────────────────┘
 ```
 
-Room/drawing state lives **only in server memory** (a `Map<roomId, ServerRoom>`) — there is no database. A dropped *connection* is survivable (see [Room lifecycle](#room-lifecycle)), but restarting the *server* drops every active room and drawing.
+Live room state is held in server memory (a `Map<roomId, ServerRoom>`) and, when storage is configured, recorded in Postgres so boards survive restarts and deploys. The default is memory only; `STORAGE=pglite` keeps boards in an embedded Postgres with no infrastructure, and `DATABASE_URL` uses a hosted Postgres. See [docs/operations.md](docs/operations.md).
 
 ### Data model
 
@@ -90,10 +92,18 @@ Node 22 is expected (see `.nvmrc`).
 | `ANTHROPIC_API_KEY` | —        | Enables the Anthropic agent (`AI_MODEL`, default `claude-opus-5-5`)                                    |
 | `OPENAI_API_KEY`    | —        | Enables the OpenAI agent (`OPENAI_MODEL`, default `gpt-5.5`)                                           |
 | `REWIND_ENABLED`    | `true`   | Shows the Rewind panel                                                                                 |
+| `STORAGE`           | derived  | `memory`, `pglite` or `postgres`. Unset: `postgres` if `DATABASE_URL` is set, else `pglite` if `PGLITE_DIR` is set, else memory |
+| `DATABASE_URL`      | —        | Hosted Postgres                                                                                        |
+| `PGLITE_DIR`        | `.data/pglite` | Embedded Postgres directory for `STORAGE=pglite`                                                 |
+| `REDIS_URL`         | —        | Cross-node broadcasts and shared rate limits                                                           |
+| `AUTH_SECRET`       | —        | Signs sessions, guest cookies and upload URLs; required for sign-in                                    |
+| `AUTH_GOOGLE_ID/SECRET`, `AUTH_GITHUB_ID/SECRET` | — | OAuth providers                                                                       |
+| `AUTH_DEV_LOGIN`    | `false`  | Email-only dev sign-in (never in production)                                                           |
+| `S3_BUCKET` and friends | —    | S3-compatible object storage instead of the local `/uploads` directory                                 |
 
-All are parsed and validated at startup, so a bad value fails immediately rather than becoming `NaN` inside a timer.
+All are parsed and validated at startup, so a bad value fails immediately rather than becoming `NaN` inside a timer. The full list with defaults is in [docs/operations.md](docs/operations.md).
 
-No database is used. The only third-party API is the model behind Sketch, and only when `AI_ENABLED` is set with a key; `AI_ENABLED=1 AI_FAKE=1 npm run dev` exercises the whole feature without one.
+With no variables set, nothing external is used. `STORAGE=pglite npm run dev` keeps boards across restarts with no database server. The only third-party API is the model behind Sketch, and only when `AI_ENABLED` is set with a key; `AI_ENABLED=1 AI_FAKE=1 npm run dev` exercises the whole feature without one.
 
 ## Scripts
 
@@ -108,7 +118,10 @@ No database is used. The only third-party API is the model behind Sketch, and on
 | `npm run typecheck`    | `tsc --noEmit`                                                                                                                      |
 | `npm test`             | `vitest run` — unit, socket integration, fuzz, renderer pixel, and AI pipeline tests                                                |
 | `npm run test:watch`   | `vitest` in watch mode                                                                                                              |
-| `npm run test:e2e`     | `playwright test` — two browser contexts against a real dev server                                                                  |
+| `npm run test:e2e`     | `playwright test` — two browser contexts against a real dev server started with the fake AI agent and embedded Postgres            |
+| `npm run db:generate`  | `drizzle-kit generate` — a new migration from `server/db/schema.ts`                                                                |
+| `npm run db:migrate`   | Applies pending migrations to the configured database and exits                                                                    |
+| `npm run dev:infra`    | `docker compose up -d` — Postgres, Redis and MinIO for the hosted-style setup                                                      |
 
 The server is **bundled** rather than compiled file-by-file, because it imports
 runtime code from `common/` (the Zod schemas) through the `@/*` alias. `tsc`
@@ -128,7 +141,7 @@ To deploy anywhere that runs a Node process:
 3. `npm start` (or configure the platform's start command to run the same: `NODE_ENV=production node build/index.js`)
 4. Ensure the platform exposes the port from `process.env.PORT` and proxies WebSocket upgrades through to it
 
-There is no database or external service to provision — all state is in-memory, so expect room/drawing data to be lost on every redeploy or restart (see [CLAUDE.md](CLAUDE.md) for the scalability implications of this).
+Without storage configured, all state is in memory and lost on every redeploy or restart. Set `DATABASE_URL` (and `AUTH_SECRET`, object storage, optionally `REDIS_URL`) for a real deployment; a `Dockerfile`, a `fly.toml` for two machines and a tag-triggered deploy workflow are included. Runbooks and the full variable list are in [docs/operations.md](docs/operations.md).
 
 ## Contributing
 
