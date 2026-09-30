@@ -8,6 +8,7 @@ import { v4 } from 'uuid';
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { toBoard } from '@/common/lib/coords';
 import { socket } from '@/common/lib/socket';
+import { uploadImage } from '@/common/lib/uploads';
 import { useViewportStore } from '@/common/store/viewport.store';
 import { Move } from '@/common/types/global';
 
@@ -29,18 +30,28 @@ const MoveImage = () => {
     else imageY.set(50);
   }, [imageX, imageY, moveImage.x, moveImage.y]);
 
-  const handlePlaceImage = () => {
+  const handlePlaceImage = async () => {
     const [finalX, finalY] = [
       toBoard(imageX.get(), x, scale),
       toBoard(imageY.get(), y, scale),
     ];
+    const { base64 } = moveImage;
+
+    // The overlay goes away at once; the move follows when the upload has.
+    setMoveImage({ base64: '' });
+    imageX.set(50);
+    imageY.set(50);
+
+    // Bytes go to storage first so the move carries a URL. If that fails the
+    // image travels inline, as it always did, and the server offloads it.
+    const uploaded = await uploadImage(base64);
 
     const move: Move = {
       ...DEFAULT_MOVE,
       // Identifies this move across a resend, so a retry is recognised by the
       // server instead of drawn twice.
       clientId: v4(),
-      img: { base64: moveImage.base64 },
+      img: uploaded ?? { base64 },
       path: [[finalX, finalY]],
       options: {
         ...DEFAULT_MOVE.options,
@@ -50,10 +61,6 @@ const MoveImage = () => {
     };
 
     socket.emit('draw', move);
-
-    setMoveImage({ base64: '' });
-    imageX.set(50);
-    imageY.set(50);
   };
 
   if (!moveImage.base64) return null;

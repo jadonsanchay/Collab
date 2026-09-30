@@ -3,6 +3,7 @@ import { History, Share2 } from 'lucide-react';
 import HotkeyTooltip from '@/common/components/HotkeyTooltip';
 import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { useHistoryStore } from '@/common/store/history.store';
+import { useRoom } from '@/common/store/room.store';
 
 import { useToolbarActionsContext } from '../modules/toolbar/context/ToolbarActions.context';
 import UserList from './UserList';
@@ -33,17 +34,14 @@ const RewindToggle = () => {
   );
 };
 
-/**
- * Board name is a placeholder until Phase 3 adds persistence and a real
- * name to edit.
- */
 const TopBar = () => {
   const { handleShare } = useToolbarActionsContext();
+  const title = useRoom().title || 'Untitled board';
 
   return (
     <div className="fixed left-0 top-0 z-40 flex w-full items-center justify-between p-3">
       <span className="rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white">
-        Untitled board
+        {title}
       </span>
 
       <div className="flex items-center gap-3">

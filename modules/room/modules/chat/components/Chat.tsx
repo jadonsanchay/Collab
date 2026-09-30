@@ -2,37 +2,34 @@ import { useEffect, useRef, useState } from 'react';
 
 import { motion } from 'framer-motion';
 import { ChevronDown, MessageCircle } from 'lucide-react';
-import { useList } from 'react-use';
 
 import { socket } from '@/common/lib/socket';
+import { useChatStore } from '@/common/store/chat.store';
 import { useRoom } from '@/common/store/room.store';
-import { MessageType } from '@/common/types/global';
 
 import ChatInput from './ChatInput';
 import Message from './Message';
 
 const Chat = () => {
   const room = useRoom();
+  const messages = useChatStore((state) => state.messages);
 
   const msgList = useRef<HTMLDivElement>(null);
 
   const [newMsg, setNewMsg] = useState(false);
   const [opened, setOpened] = useState(false);
-  const [msgs, handleMsgs] = useList<MessageType>([]);
 
   useEffect(() => {
     const handleNewMsg = (userId: string, msg: string) => {
       const user = room.users.get(userId);
 
-      handleMsgs.push({
+      useChatStore.getState().push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         userId,
-        msg,
-        id: msgs.length + 1,
-        username: user?.name || 'Anonymous',
-        color: user?.color || '#000',
+        body: msg,
+        name: user?.name || 'Anonymous',
+        createdAt: Date.now(),
       });
-
-      msgList.current?.scroll({ top: msgList.current?.scrollHeight });
 
       if (!opened) setNewMsg(true);
     };
@@ -42,7 +39,11 @@ const Chat = () => {
     return () => {
       socket.off('new_msg', handleNewMsg);
     };
-  }, [handleMsgs, msgs, opened, room.users]);
+  }, [opened, room.users]);
+
+  useEffect(() => {
+    msgList.current?.scroll({ top: msgList.current?.scrollHeight });
+  }, [messages]);
 
   return (
     <motion.div
@@ -77,8 +78,12 @@ const Chat = () => {
       </button>
       <div className="flex flex-1 flex-col justify-between bg-white p-3">
         <div className="h-[190px] overflow-y-scroll pr-2" ref={msgList}>
-          {msgs.map((msg) => (
-            <Message key={msg.id} {...msg} />
+          {messages.map((message) => (
+            <Message
+              key={message.id}
+              message={message}
+              color={room.users.get(message.userId)?.color}
+            />
           ))}
         </div>
         <ChatInput />

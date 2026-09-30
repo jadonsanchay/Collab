@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 
 import { getMyUserId } from '@/common/lib/identity';
 import { socket } from '@/common/lib/socket';
+import { useChatStore } from '@/common/store/chat.store';
 import { useSetUsers, useSetRoom, useRoom } from '@/common/store/room.store';
 
 import { Move, User } from '@/common/types/global';
@@ -131,7 +132,11 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
         usersMoves,
         myMoves,
         movesWithoutUser: snapshot.drawed,
+        title: snapshot.title ?? prev.title,
       }));
+
+      // The conversation so far, for a late joiner. Empty on older servers.
+      useChatStore.getState().seed(snapshot.chat ?? []);
     });
 
     /**

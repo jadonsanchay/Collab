@@ -1,8 +1,15 @@
 import { getMyUserId } from '@/common/lib/identity';
-import { MessageType } from '@/common/types/global';
+import type { ChatMessage } from '@/common/types/global';
 
-const Message = ({ userId, msg, username, color }: MessageType) => {
-  const me = getMyUserId() === userId;
+const Message = ({
+  message,
+  color = '#000',
+}: {
+  message: ChatMessage;
+  /** The author's current colour; grey once they have left. */
+  color?: string;
+}) => {
+  const me = getMyUserId() === message.userId;
 
   return (
     <div
@@ -10,10 +17,10 @@ const Message = ({ userId, msg, username, color }: MessageType) => {
     >
       {!me && (
         <h5 style={{ color }} className="font-bold">
-          {username}
+          {message.name}
         </h5>
       )}
-      <p style={{ wordBreak: 'break-all' }}>{msg}</p>
+      <p style={{ wordBreak: 'break-all' }}>{message.body}</p>
     </div>
   );
 };

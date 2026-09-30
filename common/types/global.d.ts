@@ -75,18 +75,11 @@ export type Room = {
 
 export interface ClientRoom {
   id: string;
+  title?: string;
   usersMoves: Map<string, Move[]>;
   movesWithoutUser: Move[];
   myMoves: Move[];
   users: Map<string, User>;
-}
-
-export interface MessageType {
-  userId: string;
-  username: string;
-  color: string;
-  msg: string;
-  id: number;
 }
 
 /**
