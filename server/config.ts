@@ -49,6 +49,13 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
   /** Directory for the embedded Postgres files. */
   PGLITE_DIR: z.string().min(1).optional(),
+  /**
+   * Optional. With it, broadcasts cross nodes through the Socket.IO Redis
+   * adapter and rate limits are counted once for all nodes.
+   */
+  REDIS_URL: z.string().min(1).optional(),
+  /** Names this node in the `features` payload. Defaults to the hostname. */
+  NODE_ID: z.string().min(1).optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

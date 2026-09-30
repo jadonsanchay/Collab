@@ -1,35 +1,73 @@
-import { RateLimiterMemory } from 'rate-limiter-flexible';
+import type Redis from 'ioredis';
+import {
+  RateLimiterMemory,
+  RateLimiterRedis,
+  type RateLimiterAbstract,
+} from 'rate-limiter-flexible';
 
 /**
- * Per-socket limits, chosen with headroom over what the UI can produce: the
+ * Per-user budgets, chosen with headroom over what the UI can produce: the
  * cursor ticks a few times a second, a fast drawer finishes a stroke in well
- * under 50ms, and nobody types five chat messages a second by hand. Normal use
- * never approaches these.
- *
- * The memory backend is deliberate for now. Phase 3 swaps it for the Redis one
- * from the same library once there is more than one server process, since
- * per-process counters stop meaning anything behind a load balancer.
+ * under 50ms, and nobody types five chat messages a second by hand. Normal
+ * use never approaches these.
  */
-const limiters = {
-  draw: new RateLimiterMemory({ points: 20, duration: 1 }),
-  send_msg: new RateLimiterMemory({ points: 5, duration: 1 }),
+const BUDGETS = {
+  draw: { points: 20, duration: 1 },
+  send_msg: { points: 5, duration: 1 },
   // One frame's worth of points, batched client-side, arriving well under
   // 60 times a second in practice.
-  stroke_points: new RateLimiterMemory({ points: 60, duration: 1 }),
-  cursor: new RateLimiterMemory({ points: 30, duration: 1 }),
-  viewport: new RateLimiterMemory({ points: 10, duration: 1 }),
+  stroke_points: { points: 60, duration: 1 },
+  cursor: { points: 30, duration: 1 },
+  viewport: { points: 10, duration: 1 },
   // Rare and room-wide by nature: nobody summons more than once every few
   // seconds on purpose.
-  summon: new RateLimiterMemory({ points: 1, duration: 5 }),
+  summon: { points: 1, duration: 5 },
   // Room churn is the expensive one: each create allocates a room that lives
   // until everyone leaves, so creates and joins share a slower budget.
-  room_entry: new RateLimiterMemory({ points: 5, duration: 10 }),
+  room_entry: { points: 5, duration: 10 },
   // Each one is a model call. The per-room budget in server/ai/limits.ts is
   // the real cost control; this just stops one person hammering the button.
-  ai_request: new RateLimiterMemory({ points: 3, duration: 10 }),
+  ai_request: { points: 3, duration: 10 },
+} as const;
+
+export type LimitedEvent = keyof typeof BUDGETS;
+
+type Limiters = Record<LimitedEvent, RateLimiterAbstract>;
+
+/**
+ * Memory-backed by default. With Redis, every node counts against the same
+ * budget, which is what a limit behind a load balancer has to do; the memory
+ * limiter stays as insurance so a Redis outage does not turn into no limits.
+ */
+const build = (redis?: Redis): Limiters =>
+  Object.fromEntries(
+    (Object.keys(BUDGETS) as LimitedEvent[]).map((event) => {
+      const budget = BUDGETS[event];
+
+      return [
+        event,
+        redis
+          ? new RateLimiterRedis({
+              storeClient: redis,
+              keyPrefix: `rl:${event}`,
+              ...budget,
+              insuranceLimiter: new RateLimiterMemory(budget),
+            })
+          : new RateLimiterMemory(budget),
+      ];
+    }),
+  ) as unknown as Limiters;
+
+let limiters = build();
+
+/** Switches every budget to Redis so several nodes share one count. */
+export const enableRedisRateLimits = (redis: Redis) => {
+  limiters = build(redis);
 };
 
-export type LimitedEvent = keyof typeof limiters;
+export const resetRateLimits = () => {
+  limiters = build();
+};
 
 /**
  * Returns true when the event is within budget. Never throws and never

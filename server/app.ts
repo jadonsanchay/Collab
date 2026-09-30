@@ -1,5 +1,7 @@
 import { createServer } from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
+import { hostname } from 'os';
+import { createAdapter } from '@socket.io/redis-adapter';
 import express from 'express';
 import { Server } from 'socket.io';
 
@@ -13,9 +15,11 @@ import { createAiService, type AiServiceOptions } from './ai';
 import { BoardStore } from './boards/BoardStore';
 import type { Persistence } from './boards/persistence';
 import { loadConfig, type Config } from './config';
+import type { RedisClients } from './redis';
 import { RoomStore } from './rooms/RoomStore';
 import { registerSocketHandlers } from './socket/handlers';
 import { registerIdentity, type SocketData } from './socket/identity';
+import { resetRateLimits, enableRedisRateLimits } from './socket/rateLimit';
 
 /**
  * Shape of `nextApp.getRequestHandler()`. Declared structurally so tests can
@@ -37,6 +41,7 @@ export const createAppServer = ({
   config = loadConfig(),
   aiOptions = {},
   persistence = null,
+  redis = null,
 }: {
   nextHandler: NextRequestHandler;
   /** Overridable so tests can use grace windows measured in milliseconds. */
@@ -45,6 +50,8 @@ export const createAppServer = ({
   aiOptions?: AiServiceOptions;
   /** The durability layer, or null for memory-only rooms. */
   persistence?: Persistence | null;
+  /** Connected Redis clients, or null for a single node with in-memory limits. */
+  redis?: RedisClients | null;
 }) => {
   const app = express();
   const server = createServer(app);
@@ -63,6 +70,14 @@ export const createAppServer = ({
      */
     maxHttpBufferSize: 2 * 1024 * 1024,
   });
+
+  if (redis) {
+    // Broadcasts fan out to every node's sockets; budgets count once for all.
+    io.adapter(createAdapter(redis.pub, redis.sub));
+    enableRedisRateLimits(redis.client);
+  } else {
+    resetRateLimits();
+  }
 
   const rooms = new RoomStore({
     userGraceMs: config.USER_GRACE_MS,
@@ -89,6 +104,8 @@ export const createAppServer = ({
   const features: Features = {
     ai: ai !== null,
     rewind: config.REWIND_ENABLED,
+    // Only meaningful once there is more than one node to tell apart.
+    ...(redis ? { node: config.NODE_ID ?? hostname() } : {}),
   };
 
   // Order matters: identity runs as middleware, so every handler can rely on
@@ -103,5 +120,5 @@ export const createAppServer = ({
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));
 
-  return { app, server, io, rooms, boards, config, ai, features };
+  return { app, server, io, rooms, boards, config, ai, features, redis };
 };
