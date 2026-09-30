@@ -1,3 +1,4 @@
+import { mkdirSync } from 'fs';
 import path from 'path';
 import { PGlite } from '@electric-sql/pglite';
 import { drizzle as drizzlePg, type NodePgDatabase } from 'drizzle-orm/node-postgres';
@@ -51,6 +52,10 @@ export const createPostgres = async (connectionString: string): Promise<Database
  * container: the zero-infrastructure way to have boards survive a restart.
  */
 export const createPglite = async (dataDir?: string): Promise<Database> => {
+  // PGlite creates its own directory but not the parents; `.data/pglite`
+  // on a fresh checkout would otherwise fail at startup.
+  if (dataDir) mkdirSync(dataDir, { recursive: true });
+
   const client = dataDir ? new PGlite(dataDir) : new PGlite();
   await client.waitReady;
 
