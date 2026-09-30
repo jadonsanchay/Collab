@@ -16,6 +16,7 @@ import type { RoomStore } from '../rooms/RoomStore';
 import type { SocketData } from '../socket/identity';
 import { createAnthropicAgent } from './agent';
 import { createFakeAgent } from './fakeAgent';
+import { createOpenAiAgent } from './openaiAgent';
 import {
   interpret,
   placeTarget,
@@ -59,6 +60,32 @@ const CHAT_MEMORY = 50;
 const center = (rect: { x: number; y: number; width: number; height: number }) =>
   [rect.x + rect.width / 2, rect.y + rect.height / 2] as [number, number];
 
+/**
+ * An explicit `AI_PROVIDER` wins; otherwise whichever key is present, with
+ * Anthropic first when both are. A provider named without its key is a
+ * configuration mistake and yields no agent rather than a surprise.
+ */
+const detectProvider = (config: Config): Config['AI_PROVIDER'] => {
+  if (config.ANTHROPIC_API_KEY) return 'anthropic';
+  if (config.OPENAI_API_KEY) return 'openai';
+
+  return undefined;
+};
+
+export const pickProviderAgent = (config: Config): SketchAgent | null => {
+  const provider = config.AI_PROVIDER ?? detectProvider(config);
+
+  if (provider === 'anthropic' && config.ANTHROPIC_API_KEY) {
+    return createAnthropicAgent({ apiKey: config.ANTHROPIC_API_KEY, model: config.AI_MODEL });
+  }
+
+  if (provider === 'openai' && config.OPENAI_API_KEY) {
+    return createOpenAiAgent({ apiKey: config.OPENAI_API_KEY, model: config.OPENAI_MODEL });
+  }
+
+  return null;
+};
+
 export const createAiService = ({
   io,
   rooms,
@@ -77,16 +104,11 @@ export const createAiService = ({
   // The fake wins when both are set: nobody wants a test run to spend money.
   if (!agent && config.AI_FAKE) agent = createFakeAgent();
 
-  if (!agent && config.ANTHROPIC_API_KEY) {
-    agent = createAnthropicAgent({
-      apiKey: config.ANTHROPIC_API_KEY,
-      model: config.AI_MODEL,
-    });
-  }
+  if (!agent) agent = pickProviderAgent(config);
 
   if (!agent) {
     logger.warn(
-      'AI_ENABLED is set but no agent is available (set ANTHROPIC_API_KEY or AI_FAKE=1); AI disabled',
+      'AI_ENABLED is set but no agent is available (set ANTHROPIC_API_KEY or OPENAI_API_KEY, or AI_FAKE=1); AI disabled',
     );
 
     return null;

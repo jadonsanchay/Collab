@@ -28,8 +28,16 @@ const envSchema = z.object({
   AI_ENABLED: z.stringbool().default(false),
   /** Deterministic agent for tests and keyless development. No network. */
   AI_FAKE: z.stringbool().default(false),
+  /**
+   * Which model API Sketch talks to. Unset means whichever key is present,
+   * Anthropic first if both are. Both providers run the same prompts, schema
+   * and validation; only the transport differs.
+   */
+  AI_PROVIDER: z.enum(['anthropic', 'openai']).optional(),
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
+  OPENAI_API_KEY: z.string().min(1).optional(),
+  OPENAI_MODEL: z.string().min(1).default('gpt-5.5'),
   /** The history panel. A closed panel by default; this hides it entirely. */
   REWIND_ENABLED: z.stringbool().default(true),
 });
