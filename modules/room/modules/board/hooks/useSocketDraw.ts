@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 
 import { socket } from '@/common/lib/socket';
-import { useSetUsers } from '@/common/store/room.store';
+import { useRoomStore, useSetUsers } from '@/common/store/room.store';
 import { Move } from '@/common/types/global';
 
 export const useSocketDraw = (drawing: boolean) => {
@@ -38,4 +38,16 @@ export const useSocketDraw = (drawing: boolean) => {
       socket.off('user_undo');
     };
   }, [handleRemoveMoveFromUser]);
+
+  useEffect(() => {
+    const handleMovesRemoved = (ids: string[]) => {
+      useRoomStore.getState().removeMoves(ids);
+    };
+
+    socket.on('moves_removed', handleMovesRemoved);
+
+    return () => {
+      socket.off('moves_removed', handleMovesRemoved);
+    };
+  }, []);
 };

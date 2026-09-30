@@ -15,6 +15,11 @@ type RoomUpdater = ClientRoom | ((prev: ClientRoom) => ClientRoom);
 type RoomState = {
   room: ClientRoom;
   setRoom: (update: RoomUpdater) => void;
+  /**
+   * Drops moves by id from every list: mine, each other user's, and the
+   * departed users' pool. Fed by the server's `moves_removed` broadcast.
+   */
+  removeMoves: (ids: string[]) => void;
 };
 
 export const useRoomStore = create<RoomState>((set) => ({
@@ -24,6 +29,30 @@ export const useRoomStore = create<RoomState>((set) => ({
     set((state) => ({
       room: typeof update === 'function' ? update(state.room) : update,
     })),
+
+  removeMoves: (ids) =>
+    set((state) => {
+      if (!ids.length) return state;
+
+      const wanted = new Set(ids);
+      const keep = (moves: Move[]) => moves.filter((move) => !wanted.has(move.id));
+
+      // New Map and arrays, never mutated in place: a component holding the
+      // old reference must see a change or it will skip its re-render.
+      const usersMoves = new Map<string, Move[]>();
+      state.room.usersMoves.forEach((moves, userId) => {
+        usersMoves.set(userId, keep(moves));
+      });
+
+      return {
+        room: {
+          ...state.room,
+          usersMoves,
+          myMoves: keep(state.room.myMoves),
+          movesWithoutUser: keep(state.room.movesWithoutUser),
+        },
+      };
+    }),
 }));
 
 export const useRoom = () => useRoomStore((state) => state.room);

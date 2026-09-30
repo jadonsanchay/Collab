@@ -111,6 +111,12 @@ export interface ServerToClientEvents {
   viewport_changed: (userId: string, x: number, y: number, scale: number) => void;
   /** Asks everyone else to bring their viewport to the sender's. */
   summoned: (byUserId: string) => void;
+  /**
+   * The server removed these moves, by id, from the room. Unlike `user_undo`
+   * this can name any move by any author; it exists so a batch of AI moves
+   * can be undone as one action. Clients drop them from every list they hold.
+   */
+  moves_removed: (moveIds: string[]) => void;
 }
 
 export interface ClientToServerEvents {

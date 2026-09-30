@@ -386,6 +386,41 @@ export class RoomStore {
     return { status: 'stored', move };
   }
 
+  /**
+   * Removes the named moves from wherever they live — any author's list or
+   * `drawed` — and returns the ones that were found. Ids that match nothing
+   * are ignored, so a stale request cannot fail loudly or touch anything else.
+   *
+   * The removed moves' client ids are released so a later move that happens
+   * to reuse one (a redo, say) is not mistaken for a duplicate.
+   */
+  removeMoves(roomId: string, ids: string[]): Move[] {
+    const room = this.rooms.get(roomId);
+
+    if (!room || !ids.length) return [];
+
+    const wanted = new Set(ids);
+    const removed: Move[] = [];
+
+    const take = (moves: Move[]): Move[] =>
+      moves.filter((move) => {
+        if (!wanted.has(move.id)) return true;
+
+        removed.push(move);
+        room.clientIds.delete(move.clientId);
+
+        return false;
+      });
+
+    room.usersMoves.forEach((moves, userId) => {
+      room.usersMoves.set(userId, take(moves));
+    });
+
+    room.drawed = take(room.drawed);
+
+    return removed;
+  }
+
   /** Returns false when there is no room or no move list to pop from. */
   undoMove(roomId: string, userId: string): boolean {
     const room = this.rooms.get(roomId);

@@ -66,3 +66,58 @@ describe('RoomStore moves carry their author', () => {
     expect(moves[0].userId).toBe(bob);
   });
 });
+
+describe('RoomStore.removeMoves', () => {
+  let store: RoomStore;
+  let roomId: string;
+  const alice = randomUUID();
+  const bob = randomUUID();
+
+  const stored = (result: ReturnType<RoomStore['addMove']>) => {
+    if (result.status !== 'stored') throw new Error(`expected stored, got ${result.status}`);
+
+    return result.move;
+  };
+
+  beforeEach(() => {
+    store = new RoomStore({ sweepIntervalMs: 60_000 });
+    roomId = store.create(alice, 'Alice', 'socket-a').roomId;
+    store.join(roomId, bob, 'Bob', 'socket-b');
+  });
+
+  afterEach(() => store.stop());
+
+  it('removes moves across authors and the departed pool, and reports them', () => {
+    const a1 = stored(store.addMove(roomId, alice, makeMove()));
+    const a2 = stored(store.addMove(roomId, alice, makeMove()));
+    const b1 = stored(store.addMove(roomId, bob, makeMove()));
+    const b2 = stored(store.addMove(roomId, bob, makeMove()));
+    store.leave(roomId, bob);
+
+    const removed = store.removeMoves(roomId, [a1.id, b2.id, 'not-a-move']);
+
+    expect(removed.map((move) => move.id).sort()).toEqual([a1.id, b2.id].sort());
+
+    const remaining = store.movesSince(roomId, 0).map((move) => move.id);
+    expect(remaining.sort()).toEqual([a2.id, b1.id].sort());
+  });
+
+  it('releases the client ids of removed moves so a resend is accepted again', () => {
+    const payload = makeMove();
+    const first = stored(store.addMove(roomId, alice, payload));
+
+    expect(store.addMove(roomId, alice, payload).status).toBe('duplicate');
+
+    store.removeMoves(roomId, [first.id]);
+
+    expect(store.addMove(roomId, alice, payload).status).toBe('stored');
+  });
+
+  it('is a no-op for an unknown room or an empty list', () => {
+    stored(store.addMove(roomId, alice, makeMove()));
+
+    expect(store.removeMoves('nowhere1', ['x'])).toEqual([]);
+    expect(store.removeMoves(roomId, [])).toEqual([]);
+    expect(store.movesSince(roomId, 0)).toHaveLength(1);
+  });
+});
