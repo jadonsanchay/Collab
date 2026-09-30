@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { getMyUserId } from '@/common/lib/identity';
 import { socket } from '@/common/lib/socket';
 import { NOT_IN_CALL, usePresenceStore } from '@/common/store/presence.store';
-import { useRoom } from '@/common/store/room.store';
+import { useRoom, useRoomStore } from '@/common/store/room.store';
+import { useVectorStore } from '@/common/store/vector.store';
 import { useViewportStore } from '@/common/store/viewport.store';
 
 /**
@@ -31,7 +32,12 @@ export const usePresenceSync = () => {
       usePresenceStore.getState().setViewport(userId, x, y, scale);
 
       if (usePresenceStore.getState().following === userId) {
-        useViewportStore.setState({ x, y, scale });
+        // The same three numbers mean the camera on a vector board.
+        if (useRoomStore.getState().room.engine === 'vector') {
+          useVectorStore.getState().setCamera({ x, y, zoom: scale });
+        } else {
+          useViewportStore.setState({ x, y, scale });
+        }
       }
     };
 

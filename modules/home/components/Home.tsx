@@ -22,7 +22,9 @@ const Home = () => {
 
   const [roomId, setRoomId] = useState('');
   const [username, setUsername] = useState('');
+  const [vectorEngine, setVectorEngine] = useState(false);
   const persistent = useFeatureFlag('persistent');
+  const vectorAvailable = useFeatureFlag('vector');
 
   const router = useRouter();
 
@@ -71,7 +73,10 @@ const Home = () => {
   const handleCreateRoom = () => {
     if (!parsedUsername.success) return;
 
-    socket.emit('create_room', parsedUsername.data);
+    // Only sent when it means something: a trailing `undefined` would cross
+    // the wire as `null`, which is not "no options".
+    if (vectorEngine) socket.emit('create_room', parsedUsername.data, { engine: 'vector' });
+    else socket.emit('create_room', parsedUsername.data);
   };
 
   const handleJoinRoom = (e: FormEvent<HTMLFormElement>) => {
@@ -145,6 +150,18 @@ const Home = () => {
 
       <div className="flex flex-col items-center gap-2">
         <h5 className="self-start font-bold leading-tight">Create new room</h5>
+
+        {vectorAvailable && (
+          <label htmlFor="engine-vector" className="flex items-center gap-2 text-sm">
+            <input
+              id="engine-vector"
+              type="checkbox"
+              checked={vectorEngine}
+              onChange={(event) => setVectorEngine(event.target.checked)}
+            />
+            Objects board (beta): select, move, resize, stickies, connectors
+          </label>
+        )}
 
         <button
           type="button"

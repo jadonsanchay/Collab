@@ -3,13 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import { MousePointer2, Volume2 } from 'lucide-react';
 
 import { isAiUser } from '@/common/constants/ai';
+import { useBoardView } from '@/common/lib/boardCoords';
 import { getMyUserId } from '@/common/lib/identity';
-import { toScreen } from '@/common/lib/coords';
 import { socket } from '@/common/lib/socket';
 import { activityLabel, useSketchActivity } from '@/common/store/ai.store';
 import { usePresenceStore } from '@/common/store/presence.store';
 import { useRoom } from '@/common/store/room.store';
-import { useViewportStore } from '@/common/store/viewport.store';
 
 /** A cursor with no update in this long is assumed idle and hidden. */
 const IDLE_TIMEOUT_MS = 5000;
@@ -24,9 +23,7 @@ type RenderedCursor = { x: number; y: number };
  */
 const CursorLayer = () => {
   const { users } = useRoom();
-  const x = useViewportStore((state) => state.x);
-  const y = useViewportStore((state) => state.y);
-  const scale = useViewportStore((state) => state.scale);
+  const view = useBoardView();
 
   const [rendered, setRendered] = useState<Map<string, RenderedCursor>>(new Map());
   const [messages, setMessages] = useState<Map<string, string>>(new Map());
@@ -106,6 +103,7 @@ const CursorLayer = () => {
 
         const user = users.get(userId);
         const msg = messages.get(userId);
+        const screen = view.toScreen(pos.x, pos.y);
 
         return (
           <div
@@ -113,7 +111,7 @@ const CursorLayer = () => {
             className="pointer-events-none absolute left-0 top-0 z-20 text-blue-800"
             style={{
               color: user?.color,
-              transform: `translate(${toScreen(pos.x, x, scale)}px, ${toScreen(pos.y, y, scale)}px)`,
+              transform: `translate(${screen.x}px, ${screen.y}px)`,
             }}
           >
             <MousePointer2 />

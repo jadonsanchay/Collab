@@ -135,6 +135,7 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
         myMoves,
         movesWithoutUser: snapshot.drawed,
         title: snapshot.title ?? prev.title,
+        engine: snapshot.engine ?? prev.engine ?? 'raster',
       }));
 
       // The conversation so far, for a late joiner. Empty on older servers.

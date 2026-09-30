@@ -1,3 +1,5 @@
+import dynamic from 'next/dynamic';
+
 import ErrorBoundary from '@/common/components/ErrorBoundary';
 import { useRoom } from '@/common/store/room.store';
 
@@ -14,10 +16,18 @@ import NameInput from './NameInput';
 import ShortcutsSheet from './ShortcutsSheet';
 import TopBar from './TopBar';
 
+/**
+ * The vector engine is its own chunk: raster boards, still the default,
+ * never download the Yjs client or the vector renderer.
+ */
+const VectorBoard = dynamic(() => import('@/modules/vector'), { ssr: false });
+
 const Room = () => {
   const room = useRoom();
 
   if (!room.id) return <NameInput />;
+
+  const vector = room.engine === 'vector';
 
   return (
     <ErrorBoundary>
@@ -27,13 +37,13 @@ const Room = () => {
             <AiSync />
             <ConnectionBanner />
             <TopBar />
-            <Toolbar />
+            {!vector && <Toolbar />}
             <CommandPalette />
             <ShortcutsSheet />
-            <Board />
+            {vector ? <VectorBoard /> : <Board />}
             <Chat />
-            <RewindPanel />
-            <HistoryBanner />
+            {!vector && <RewindPanel />}
+            {!vector && <HistoryBanner />}
           </div>
         </ToolbarActionsProvider>
       </RoomContextProvider>

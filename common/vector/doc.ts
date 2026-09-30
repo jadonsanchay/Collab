@@ -132,6 +132,9 @@ export const setText = (doc: Y.Doc, id: string, field: string, value: string, or
 export const createUndoManager = (doc: Y.Doc, origin: unknown) =>
   new Y.UndoManager(objectsMap(doc), {
     trackedOrigins: new Set([origin]),
+    // Groups keystrokes and a drag's stream of position updates into one
+    // step. Callers mark gesture boundaries with `stopCapturing()`, since
+    // time alone would also merge separate quick actions.
     captureTimeout: 300,
   });
 

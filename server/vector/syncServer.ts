@@ -208,11 +208,9 @@ export const attachVectorSync = (server: HttpServer, deps: SyncDeps) => {
   server.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
 
-    if (!url.pathname.startsWith(`${YJS_PATH}/`)) {
-      // Socket.IO handles its own path; nothing else speaks WebSocket here.
-      if (!url.pathname.startsWith('/socket.io')) socket.destroy();
-      return;
-    }
+    // Only this path. Socket.IO and Next's dev HMR socket share the server
+    // and route their own upgrades; `app.ts` disposes of anything unclaimed.
+    if (!url.pathname.startsWith(`${YJS_PATH}/`)) return;
 
     const boardId = roomIdSchema.safeParse(url.pathname.slice(YJS_PATH.length + 1));
 

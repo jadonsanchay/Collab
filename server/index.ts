@@ -20,6 +20,10 @@ const nextHandler = nextApp.getRequestHandler();
 const start = async () => {
   await nextApp.prepare();
 
+  // Hot reload rides a WebSocket on the same port; only dev has one, and
+  // Next only hands it out once prepared.
+  const nextUpgradeHandler = dev ? nextApp.getUpgradeHandler() : null;
+
   // Connects and migrates before a single socket is accepted, so a bad
   // database setting fails here rather than on the first join.
   const storage = createStorage(config);
@@ -51,6 +55,7 @@ const start = async () => {
 
   const { server, boards, snapshots, vectorDocs } = createAppServer({
     nextHandler,
+    nextUpgradeHandler,
     config,
     persistence: persisted?.persistence ?? null,
     database: persisted?.database ?? null,

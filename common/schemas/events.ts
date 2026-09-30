@@ -25,13 +25,17 @@ export const createRoomSchema = usernameSchema;
 
 export const boardEngineSchema = z.enum(['raster', 'vector']);
 
-/** Additive options on `create_room`; an older client sends none. */
+/**
+ * Additive options on `create_room`; an older client sends none. Nullish
+ * rather than optional because a trailing `undefined` argument arrives as
+ * `null` once it has been through JSON.
+ */
 export const createRoomOptionsSchema = z
   .object({
     title: z.string().max(80).optional(),
     engine: boardEngineSchema.optional(),
   })
-  .optional();
+  .nullish();
 
 export const joinRoomSchema = z.object({
   roomId: roomIdSchema,

@@ -41,6 +41,11 @@ export const openVectorSession = (boardId: string): VectorSession => {
   const onStatus = ({ status }: { status: string }) => store().setConnected(status === 'connected');
   provider.on('status', onStatus);
 
+  if (process.env.NODE_ENV !== 'production') {
+    // A handle for the e2e suite and for poking at the document in dev tools.
+    (window as unknown as { collabVector?: unknown }).collabVector = { doc, undo, provider, store: useVectorStore };
+  }
+
   return {
     doc,
     provider,

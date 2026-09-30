@@ -3,17 +3,20 @@ import { useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useInterval, useMouse } from 'react-use';
 
-import { toBoard } from '@/common/lib/coords';
+import { screenToBoardPoint, useBoardView } from '@/common/lib/boardCoords';
 import { socket } from '@/common/lib/socket';
-import { useViewportStore } from '@/common/store/viewport.store';
 
 /** Matches the server's 30-per-second `cursor` budget. */
 const BROADCAST_INTERVAL_MS = 33;
 
+/**
+ * Sends this pointer's board position to the room and shows its coordinates
+ * by the cursor. Board coordinates come from whichever engine the room
+ * uses, so remote cursors line up on raster and vector boards alike.
+ */
 const CursorBroadcaster = () => {
-  const x = useViewportStore((state) => state.x);
-  const y = useViewportStore((state) => state.y);
-  const scale = useViewportStore((state) => state.scale);
+  // Re-render on view changes so the coordinate readout stays right.
+  useBoardView();
 
   const prevPosition = useRef({ x: 0, y: 0 });
 
@@ -28,12 +31,16 @@ const CursorBroadcaster = () => {
       (prevPosition.current.x !== docX || prevPosition.current.y !== docY) &&
       !touchDevice
     ) {
-      socket.emit('cursor', toBoard(docX, x, scale), toBoard(docY, y, scale));
+      const board = screenToBoardPoint(docX, docY);
+
+      socket.emit('cursor', board.x, board.y);
       prevPosition.current = { x: docX, y: docY };
     }
   }, BROADCAST_INTERVAL_MS);
 
   if (touchDevice) return null;
+
+  const board = screenToBoardPoint(docX, docY);
 
   return (
     <motion.div
@@ -42,7 +49,7 @@ const CursorBroadcaster = () => {
       animate={{ x: docX + 15, y: docY + 15 }}
       transition={{ duration: 0.05, ease: 'linear' }}
     >
-      {toBoard(docX, x, scale).toFixed(0)} | {toBoard(docY, y, scale).toFixed(0)}
+      {board.x.toFixed(0)} | {board.y.toFixed(0)}
     </motion.div>
   );
 };

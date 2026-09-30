@@ -1,6 +1,7 @@
 import { createServer } from 'http';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { hostname } from 'os';
+import type { Duplex } from 'stream';
 import { createAdapter } from '@socket.io/redis-adapter';
 import { and, eq } from 'drizzle-orm';
 import express from 'express';
@@ -51,6 +52,13 @@ export type NextRequestHandler = (
   res: ServerResponse,
 ) => void | Promise<void>;
 
+/** Shape of `nextApp.getUpgradeHandler()`: the dev-mode HMR WebSocket. */
+export type NextUpgradeHandler = (
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer,
+) => void | Promise<void>;
+
 /**
  * Builds the Express app, the HTTP server, and the Socket.IO server, and wires
  * the socket handlers to a fresh `RoomStore`. Does not listen — the caller
@@ -58,6 +66,7 @@ export type NextRequestHandler = (
  */
 export const createAppServer = ({
   nextHandler,
+  nextUpgradeHandler = null,
   config = loadConfig(),
   aiOptions = {},
   persistence = null,
@@ -69,6 +78,8 @@ export const createAppServer = ({
   roomService = undefined,
 }: {
   nextHandler: NextRequestHandler;
+  /** Next's own WebSocket (hot reload in dev); null in production and tests. */
+  nextUpgradeHandler?: NextUpgradeHandler | null;
   /** Overridable so tests can use grace windows measured in milliseconds. */
   config?: Config;
   /** Overridable so tests can inject an agent and shrink limits and timings. */
@@ -220,6 +231,22 @@ export const createAppServer = ({
   registerAuthRoutes(app, authDeps);
 
   attachVectorSync(server, { store: vectorDocs, boards, roles, auth: authDeps });
+
+  // Three things speak WebSocket on this port: Socket.IO, the Yjs sync
+  // server, and Next's hot-reload channel in dev. Each claims its own path;
+  // an upgrade for anything else is closed rather than left hanging.
+  server.on('upgrade', (req, socket, head) => {
+    const path = req.url ?? '/';
+
+    if (path.startsWith('/socket.io') || path.startsWith('/yjs/')) return;
+
+    if (nextUpgradeHandler && path.startsWith('/_next/')) {
+      Promise.resolve(nextUpgradeHandler(req, socket, head)).catch(() => socket.destroy());
+      return;
+    }
+
+    socket.destroy();
+  });
 
   if (database) {
     registerBoardRoutes(app, { db: database.db, boards, roles, auth: authDeps, io, storage });
