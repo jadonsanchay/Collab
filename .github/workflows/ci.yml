@@ -39,6 +39,48 @@ jobs:
       - name: Test
         run: npm test
 
+  # The same suite against real Postgres and Redis. Tests that need them
+  # read TEST_DATABASE_URL / TEST_REDIS_URL and skip when unset, so the
+  # plain `test` job above still covers memory mode with no infrastructure.
+  test-infra:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: collab
+          POSTGRES_PASSWORD: collab
+          POSTGRES_DB: collab
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U collab"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://collab:collab@localhost:5432/collab
+      TEST_REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Test against Postgres and Redis
+        run: npm test
+
   build:
     runs-on: ubuntu-latest
     steps:

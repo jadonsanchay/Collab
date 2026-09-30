@@ -40,9 +40,29 @@ const envSchema = z.object({
   OPENAI_MODEL: z.string().min(1).default('gpt-5.5'),
   /** The history panel. A closed panel by default; this hides it entirely. */
   REWIND_ENABLED: z.stringbool().default(true),
+  /**
+   * Where boards live. Unset picks from what is configured: `DATABASE_URL`
+   * means postgres, `PGLITE_DIR` means the embedded engine, neither means
+   * memory only (Phase 2 behaviour, lost on restart).
+   */
+  STORAGE: z.enum(['memory', 'postgres', 'pglite']).optional(),
+  DATABASE_URL: z.string().min(1).optional(),
+  /** Directory for the embedded Postgres files. */
+  PGLITE_DIR: z.string().min(1).optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;
+
+export type StorageKind = 'memory' | 'postgres' | 'pglite';
+
+/** An explicit `STORAGE` wins; otherwise whatever is configured decides. */
+export const resolveStorage = (config: Config): StorageKind => {
+  if (config.STORAGE) return config.STORAGE;
+  if (config.DATABASE_URL) return 'postgres';
+  if (config.PGLITE_DIR) return 'pglite';
+
+  return 'memory';
+};
 
 export const loadConfig = (
   env: Record<string, string | undefined> = process.env,

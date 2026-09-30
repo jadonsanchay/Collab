@@ -47,3 +47,6 @@ docs/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# embedded Postgres data (STORAGE=pglite)
+/.data/
