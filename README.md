@@ -8,7 +8,7 @@ For deeper implementation notes (module layout, conventions, gotchas), see [CLAU
 
 ## Features
 
-- Freehand line drawing, circles, rectangles, and image pasting, with adjustable line width/color and fill color
+- Freehand line drawing, circles, rectangles, text, and image pasting, with adjustable line width/color and fill color
 - Eraser mode and a rectangular selection tool (for moving pasted images)
 - Real-time sync of all drawing across everyone in the room
 - Live mouse cursors showing where other users are pointing
@@ -18,6 +18,8 @@ For deeper implementation notes (module layout, conventions, gotchas), see [CLAU
 - Custom canvas background picker
 - Room sharing via a short room ID/link
 - Sessions that survive a dropped connection: your place, colour and history are held while you reconnect
+- **Sketch, an AI teammate** (opt-in): joins the room with a cursor, cleans up a selection, draws from a prompt or an `@sketch` chat mention, and summarizes the board as stickies; its work is undoable as one action. See [docs/ai-teammate.md](docs/ai-teammate.md)
+- **Rewind**: scrub the board's history, filter by author, play it back, and export a WebM timelapse
 
 ## Architecture
 
@@ -40,7 +42,7 @@ Room/drawing state lives **only in server memory** (a `Map<roomId, ServerRoom>`)
 
 | Type                 | Where                      | What it represents                                                                                                                                                                                                                                                        |
 | -------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Move`               | `common/schemas/move.ts`   | One drawing operation: shape type, path points, circle/rect params, line/fill color + width, optional base64 image. The server assigns `id`, `timestamp` and `seq`; the client supplies `clientId`. Defined as a Zod schema, with the TypeScript type inferred from it.    |
+| `Move`               | `common/schemas/move.ts`   | One drawing operation: shape type, path points, circle/rect params, line/fill color + width, optional base64 image or text. The server assigns `id`, `timestamp`, `seq` and `userId`; the client supplies `clientId`. Defined as a Zod schema, with the TypeScript type inferred from it. |
 | `ServerRoom`         | `server/rooms/types.ts`    | Keyed by the stable `userId`, not by socket: `{ users, usersMoves, drawed, seq, clientIds, emptySince }`. `usersMoves` holds each user's own move history (for per-user undo). `drawed` holds moves from users who have left — kept so their drawing persists.            |
 | `ClientRoom`         | `common/types/global.d.ts` | The client's local mirror: `usersMoves` (other users' moves, keyed by `userId`), `movesWithoutUser` (from `drawed`), `myMoves` (this user's own moves, enabling instant local undo/redo), and `users` (`userId` → `{ name, color, offline }`).                            |
 
@@ -54,11 +56,13 @@ The client reconstructs the board by merging `movesWithoutUser + myMoves + every
 3. **Snapshot**: once on the room page, client emits `joined_room()` → server replies with the full `room` payload (all moves + users so far) and broadcasts `new_user` to everyone else already in the room.
 4. **Draw**: client emits `draw(move)` → server validates it, assigns `id`/`timestamp`/`seq`, stores it under that user's move list, echoes it back as `your_move` and broadcasts it as `user_draw`. A `clientId` the room has already seen is treated as a resend and ignored, so retrying is safe.
 5. **Undo**: client emits `undo()` → server pops that socket's last stored move and broadcasts `user_undo(userId)` so others remove it too. Redo is purely client-side (replays a previously-undone move as a fresh `draw`).
-6. **Cursor/chat**: `mouse_move(x, y)` → broadcast as `mouse_moved`; `send_msg(msg)` → broadcast (including back to sender) as `new_msg`.
+6. **Cursor/chat**: `cursor(x, y)` → volatile broadcast as `cursor_moved`; `send_msg(msg)` → broadcast (including back to sender) as `new_msg`.
 7. **Drop**: on socket `disconnecting`, the user is marked offline and `user_offline` is broadcast. Their place — colour, moves, undo history — is held for `USER_GRACE_MS`. Reconnecting within that window emits `rejoin_room(roomId, lastSeq)` and the server replies with `room_delta`: only the moves that were missed.
 8. **Leave**: on explicit `leave_room`, or once the grace window expires, the server folds that user's moves into `drawed` (so the drawing persists), removes them, and broadcasts `user_disconnected(userId)`. An empty room is swept after `ROOM_GRACE_MS`.
 
-The full typed event contract lives in `common/types/global.d.ts` (`ClientToServerEvents` / `ServerToClientEvents`) and is shared by both client and server.
+9. **AI** (when `AI_ENABLED`): `ai_request` → `ai_status` updates to the room while Sketch, a synthetic member, moves its cursor and emits ordinary `user_draw` moves; `ai_undo` → `moves_removed(ids)` on every client.
+
+The full typed event contract lives in `common/types/global.d.ts` (`ClientToServerEvents` / `ServerToClientEvents`) and is shared by both client and server. Once per connection the server sends `features`, which tells the client which optional features (AI, Rewind) exist here.
 
 ## Getting started
 
@@ -80,10 +84,16 @@ Node 22 is expected (see `.nvmrc`).
 | `USER_GRACE_MS`     | `60000`  | How long a disconnected user keeps their place in the room                                             |
 | `ROOM_GRACE_MS`     | `1800000`| How long an empty room is kept before its drawing is discarded                                         |
 | `SWEEP_INTERVAL_MS` | `60000`  | How often expired users and empty rooms are looked for                                                 |
+| `AI_ENABLED`        | `false`  | Turns on Sketch, the AI teammate. Needs a key or `AI_FAKE`                                             |
+| `AI_FAKE`           | `false`  | Deterministic agent for development and tests: no key, no network                                      |
+| `AI_PROVIDER`       | —        | `anthropic` or `openai`; unset picks whichever key is present                                          |
+| `ANTHROPIC_API_KEY` | —        | Enables the Anthropic agent (`AI_MODEL`, default `claude-opus-5-5`)                                    |
+| `OPENAI_API_KEY`    | —        | Enables the OpenAI agent (`OPENAI_MODEL`, default `gpt-5.5`)                                           |
+| `REWIND_ENABLED`    | `true`   | Shows the Rewind panel                                                                                 |
 
 All are parsed and validated at startup, so a bad value fails immediately rather than becoming `NaN` inside a timer.
 
-There is no `.env` requirement beyond these — no database or third-party API keys are used.
+No database is used. The only third-party API is the model behind Sketch, and only when `AI_ENABLED` is set with a key; `AI_ENABLED=1 AI_FAKE=1 npm run dev` exercises the whole feature without one.
 
 ## Scripts
 
@@ -96,7 +106,7 @@ There is no `.env` requirement beyond these — no database or third-party API k
 | `npm start`            | `NODE_ENV=production node build/index.js` — serves the bundled server + built Next.js app                                           |
 | `npm run lint`         | `eslint .`                                                                                                                          |
 | `npm run typecheck`    | `tsc --noEmit`                                                                                                                      |
-| `npm test`             | `vitest run` — unit, socket integration, and fuzz tests                                                                             |
+| `npm test`             | `vitest run` — unit, socket integration, fuzz, renderer pixel, and AI pipeline tests                                                |
 | `npm run test:watch`   | `vitest` in watch mode                                                                                                              |
 | `npm run test:e2e`     | `playwright test` — two browser contexts against a real dev server                                                                  |
 

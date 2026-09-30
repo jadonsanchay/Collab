@@ -7,7 +7,6 @@ import {
   cursorSchema,
   drawSchema,
   joinRoomSchema,
-  mouseMoveSchema,
   rejoinRoomSchema,
   sendMsgSchema,
   strokeEndSchema,
@@ -365,26 +364,6 @@ export const registerSocketHandlers = (
         if (!rooms.undoMove(roomId, userId)) return;
 
         socket.broadcast.to(roomId).emit('user_undo', userId);
-      }),
-    );
-
-    socket.on(
-      'mouse_move',
-      safeHandler('mouse_move', async (x, y) => {
-        const roomId = getRoomId();
-        if (!roomId) return;
-
-        if (!(await withinLimit('mouse_move', userId))) return;
-
-        const parsed = mouseMoveSchema.safeParse({ x, y });
-
-        // Deliberately quiet: cursor updates arrive many times a second, and a
-        // warn per bad packet would drown the log.
-        if (!parsed.success) return;
-
-        socket.broadcast
-          .to(roomId)
-          .emit('mouse_moved', parsed.data.x, parsed.data.y, userId);
       }),
     );
 

@@ -21,7 +21,7 @@ const SEED = 20260921;
 const EVENTS: (keyof ClientToServerEvents)[] = [
   'check_room',
   'draw',
-  'mouse_move',
+  'cursor',
   'undo',
   'create_room',
   'join_room',

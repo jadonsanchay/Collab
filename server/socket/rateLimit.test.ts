@@ -128,7 +128,7 @@ describe('rate limiting', () => {
       notices += 1;
     });
 
-    for (let i = 0; i < 100; i += 1) bob.emit('mouse_move', i, i);
+    for (let i = 0; i < 100; i += 1) bob.emit('cursor', i, i);
 
     await settle();
 

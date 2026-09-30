@@ -12,7 +12,6 @@ import { RateLimiterMemory } from 'rate-limiter-flexible';
  */
 const limiters = {
   draw: new RateLimiterMemory({ points: 20, duration: 1 }),
-  mouse_move: new RateLimiterMemory({ points: 30, duration: 1 }),
   send_msg: new RateLimiterMemory({ points: 5, duration: 1 }),
   // One frame's worth of points, batched client-side, arriving well under
   // 60 times a second in practice.

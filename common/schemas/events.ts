@@ -36,11 +36,6 @@ export const rejoinRoomSchema = z.object({
   lastSeq: z.number().int().nonnegative(),
 });
 
-export const mouseMoveSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-});
-
 export const sendMsgSchema = chatMessageSchema;
 
 /**

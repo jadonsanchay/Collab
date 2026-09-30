@@ -287,11 +287,11 @@ describe('socket handlers', () => {
     await expect(forAlice).resolves.toEqual([bob.userId, 'hello']);
   });
 
-  it('broadcasts mouse movement to others only', async () => {
-    const moved = waitFor(bob, 'mouse_moved');
-    alice.emit('mouse_move', 12, 34);
+  it('relays a cursor position to others only', async () => {
+    const moved = waitFor(bob, 'cursor_moved');
+    alice.emit('cursor', 12, 34);
 
-    await expect(moved).resolves.toEqual([12, 34, alice.userId]);
+    await expect(moved).resolves.toEqual([alice.userId, 12, 34]);
   });
 
   it('relays a live stroke to others only, but stores nothing', async () => {
@@ -560,8 +560,8 @@ describe('socket handlers', () => {
       await expectStillServed();
     });
 
-    it('survives mouse_move and send_msg, and broadcasts neither', async () => {
-      loner.emit('mouse_move', 1, 2);
+    it('survives cursor and send_msg, and broadcasts neither', async () => {
+      loner.emit('cursor', 1, 2);
       loner.emit('send_msg', 'into the void');
 
       await expectNoEvent(loner, 'new_msg');

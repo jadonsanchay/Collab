@@ -90,7 +90,6 @@ export interface ServerToClientEvents {
   your_move: (move: Move) => void;
   user_draw: (move: Move, userId: string) => void;
   user_undo(userId: string): void;
-  mouse_moved: (x: number, y: number, userId: string) => void;
   /** Colour is assigned by the server so every client agrees on it. */
   new_user: (userId: string, username: string, color: string) => void;
   /**
@@ -151,7 +150,6 @@ export interface ServerToClientEvents {
 export interface ClientToServerEvents {
   check_room: (roomId: string) => void;
   draw: (move: Move) => void;
-  mouse_move: (x: number, y: number) => void;
   undo: () => void;
   create_room: (username: string) => void;
   join_room: (room: string, username: string) => void;
