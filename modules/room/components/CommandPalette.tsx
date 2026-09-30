@@ -12,7 +12,10 @@ import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { isCommandPalette, isTypingTarget } from '@/common/lib/keyboard';
 import { useAiStore } from '@/common/store/ai.store';
 import { useSetBackground, useBackground } from '@/common/store/background.store';
+import { useCallStore } from '@/common/store/call.store';
 import { useHistoryStore } from '@/common/store/history.store';
+import { usePresenceStore } from '@/common/store/presence.store';
+import { useRoom } from '@/common/store/room.store';
 import { useSetOptions } from '@/common/store/options.store';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { useViewportStore } from '@/common/store/viewport.store';
@@ -35,7 +38,11 @@ const CommandPalette = () => {
     useToolbarActionsContext();
   const ai = useFeatureFlag('ai');
   const rewind = useFeatureFlag('rewind');
+  const rtc = useFeatureFlag('rtc');
   const { canvasRef, bgRef } = useRefs();
+  const { id: roomId } = useRoom();
+  const callStatus = useCallStore((state) => state.status);
+  const followSpeaker = usePresenceStore((state) => state.followSpeaker);
 
   const summarizeWithSketch = () => {
     const image = canvasRef.current
@@ -134,6 +141,34 @@ const CommandPalette = () => {
             </CommandItem>
             <CommandItem onSelect={run(summarizeWithSketch)}>
               Summarize board with Sketch
+            </CommandItem>
+          </CommandGroup>
+        )}
+
+        {rtc && (
+          <CommandGroup heading="Call">
+            {callStatus === 'idle' || callStatus === 'error' ? (
+              <CommandItem onSelect={run(() => useCallStore.getState().join(roomId))}>
+                Join call
+              </CommandItem>
+            ) : (
+              <>
+                <CommandItem onSelect={run(() => useCallStore.getState().leave())}>Leave call</CommandItem>
+                <CommandItem onSelect={run(() => useCallStore.getState().toggles?.microphone())}>
+                  Toggle microphone
+                </CommandItem>
+                <CommandItem onSelect={run(() => useCallStore.getState().toggles?.camera())}>
+                  Toggle camera
+                </CommandItem>
+                <CommandItem onSelect={run(() => useCallStore.getState().toggles?.screenShare())}>
+                  Share screen
+                </CommandItem>
+              </>
+            )}
+            <CommandItem
+              onSelect={run(() => usePresenceStore.getState().setFollowSpeaker(!followSpeaker))}
+            >
+              {followSpeaker ? 'Stop following the speaker' : 'Follow the speaker'}
             </CommandItem>
           </CommandGroup>
         )}

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { MousePointer2 } from 'lucide-react';
+import { MousePointer2, Volume2 } from 'lucide-react';
 
 import { isAiUser } from '@/common/constants/ai';
 import { getMyUserId } from '@/common/lib/identity';
@@ -31,6 +31,7 @@ const CursorLayer = () => {
   const [rendered, setRendered] = useState<Map<string, RenderedCursor>>(new Map());
   const [messages, setMessages] = useState<Map<string, string>>(new Map());
   const activity = useSketchActivity();
+  const calls = usePresenceStore((state) => state.calls);
 
   // Read from the rAF loop below without restarting it on every change.
   const activityRef = useRef(activity);
@@ -121,8 +122,9 @@ const CursorLayer = () => {
                 {msg}
               </p>
             )}
-            <p className="ml-2">
+            <p className="ml-2 flex items-center gap-1">
               {user?.name || 'Anonymous'}
+              {calls.get(userId)?.speaking && <Volume2 className="size-3 text-green-500" />}
               {isAiUser(userId) && activity && (
                 <span className="ml-1 text-xs opacity-80">· {activityLabel(activity)}</span>
               )}

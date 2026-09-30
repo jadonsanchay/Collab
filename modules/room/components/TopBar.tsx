@@ -12,6 +12,7 @@ import { useHistoryStore } from '@/common/store/history.store';
 import { useMyRole, useRoomTitle } from '@/common/store/room.store';
 import { useIdentity } from '@/common/store/session.store';
 
+import CallEntry from '../modules/call';
 import { useToolbarActionsContext } from '../modules/toolbar/context/ToolbarActions.context';
 import UserList from './UserList';
 
@@ -144,6 +145,7 @@ const AccountButton = () => {
 const TopBar = () => {
   const { handleShare } = useToolbarActionsContext();
   const persistent = useFeatureFlag('persistent');
+  const rtc = useFeatureFlag('rtc');
   const role = useMyRole();
 
   return (
@@ -166,6 +168,8 @@ const TopBar = () => {
 
       <div className="flex items-center gap-3">
         <UserList />
+
+        {rtc && <CallEntry />}
 
         <RewindToggle />
 

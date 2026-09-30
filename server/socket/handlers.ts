@@ -51,6 +51,8 @@ export type HandlerDeps = {
    * board, everyone else who finds it may draw.
    */
   roles?: RoleResolver;
+  /** Who is in the board's call, when calls exist. Sent with the snapshot. */
+  callParticipants?: (roomId: string) => string[];
 };
 
 const DEFAULT_DEPS: HandlerDeps = {
@@ -322,6 +324,10 @@ export const registerSocketHandlers = (
           JSON.stringify([...room.usersMoves]),
           JSON.stringify(toPublicUsers(room.users)),
         );
+
+        if (deps.callParticipants) {
+          socket.emit('call_participants', deps.callParticipants(roomId));
+        }
 
         const me = room.users.get(userId);
         if (!me) return;

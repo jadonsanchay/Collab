@@ -93,6 +93,14 @@ export const isCommandPalette = (event: KeyboardEvent): boolean =>
 export const isRewind = (event: KeyboardEvent): boolean =>
   hasModifier(event) && event.shiftKey && event.key.toLowerCase() === 'h';
 
+/** Cmd/Ctrl+Shift+D toggles the microphone in a call. */
+export const isMicToggle = (event: KeyboardEvent): boolean =>
+  hasModifier(event) && event.shiftKey && event.key.toLowerCase() === 'd';
+
+/** Cmd/Ctrl+Shift+E toggles the camera in a call. */
+export const isCameraToggle = (event: KeyboardEvent): boolean =>
+  hasModifier(event) && event.shiftKey && event.key.toLowerCase() === 'e';
+
 /** `?` is Shift+/ on every layout that has a dedicated `?` key. */
 export const isShortcutsSheet = (event: KeyboardEvent): boolean =>
   !hasModifier(event) && event.key === '?';

@@ -31,6 +31,7 @@ import { type ReadinessCheck, registerOpsRoutes } from './ops/health';
 import { activeRooms, connectedSockets } from './ops/metrics';
 import type { RedisClients } from './redis';
 import { RoomStore } from './rooms/RoomStore';
+import { CallRoster, registerRtcRoutes, type RoomService, rtcSettings } from './rtc/routes';
 import { registerSocketHandlers } from './socket/handlers';
 import { registerIdentity, type SocketData } from './socket/identity';
 import { resetRateLimits, enableRedisRateLimits } from './socket/rateLimit';
@@ -62,6 +63,7 @@ export const createAppServer = ({
   snapshotOptions = {},
   redis = null,
   readinessChecks = [],
+  roomService = undefined,
 }: {
   nextHandler: NextRequestHandler;
   /** Overridable so tests can use grace windows measured in milliseconds. */
@@ -79,6 +81,8 @@ export const createAppServer = ({
   redis?: RedisClients | null;
   /** Dependency pings for `/readyz`. */
   readinessChecks?: ReadinessCheck[];
+  /** A fake LiveKit room service for tests; the real one is built from config. */
+  roomService?: RoomService;
 }) => {
   const app = express();
   const server = createServer(app);
@@ -141,12 +145,15 @@ export const createAppServer = ({
   // sign sessions with. Guests need neither.
   const authConfig = database ? buildAuthConfig(config, database.db) : null;
   const guestSecret = config.AUTH_SECRET ?? DEV_GUEST_SECRET;
+  const rtc = rtcSettings(config);
+  const roster = rtc ? new CallRoster() : null;
 
   const features: Features = {
     ai: ai !== null,
     rewind: config.REWIND_ENABLED,
     auth: authConfig !== null,
     persistent: boards.persistent,
+    rtc: rtc !== null,
     // Only meaningful once there is more than one node to tell apart.
     ...(redis ? { node: config.NODE_ID ?? hostname() } : {}),
   };
@@ -178,6 +185,7 @@ export const createAppServer = ({
     storage,
     roles,
     mergeGuest: database ? (guestId, accountId) => mergeGuest(database.db, guestId, accountId) : undefined,
+    callParticipants: roster ? (roomId) => roster.participantsOf(roomId) : undefined,
   });
 
   app.get('/hello', async (_, res) => {
@@ -203,6 +211,10 @@ export const createAppServer = ({
 
   if (database) {
     registerBoardRoutes(app, { db: database.db, boards, roles, auth: authDeps, io, storage });
+  }
+
+  if (rtc && roster) {
+    registerRtcRoutes(app, { settings: rtc, boards, roles, auth: authDeps, io, roomService }, roster);
   }
 
   // Everything else (pages, assets, API routes) falls through to Next.js.

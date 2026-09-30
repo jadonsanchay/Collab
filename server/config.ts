@@ -85,6 +85,15 @@ const envSchema = z.object({
   AUTH_GITHUB_SECRET: z.string().min(1).optional(),
   /** An email-only "dev login" provider for local work and tests. Never in production. */
   AUTH_DEV_LOGIN: z.stringbool().default(false),
+  /**
+   * Voice, video and screen share through a LiveKit SFU. All four are
+   * needed for the feature to exist; with any missing, no call UI renders
+   * and the media SDK is never downloaded.
+   */
+  RTC_ENABLED: z.stringbool().default(false),
+  LIVEKIT_URL: z.string().url().optional(),
+  LIVEKIT_API_KEY: z.string().min(1).optional(),
+  LIVEKIT_API_SECRET: z.string().min(1).optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

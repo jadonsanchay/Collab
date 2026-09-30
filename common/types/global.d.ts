@@ -43,6 +43,8 @@ export interface Features {
   auth?: boolean;
   /** Boards outlive the process: the dashboard and templates make sense. */
   persistent?: boolean;
+  /** A call can be joined from this board (LiveKit configured). */
+  rtc?: boolean;
   /** Which node answered, once there is more than one (Phase 3). */
   node?: string;
 }
@@ -190,6 +192,10 @@ export interface ServerToClientEvents {
   room_renamed: (title: string) => void;
   /** The owner deleted the board; everyone in it is sent home. */
   board_deleted: () => void;
+  /** The owner muted this user's track in the call. Only the target is told. */
+  rtc_moderated: (targetUserId: string, track: 'audio' | 'video') => void;
+  /** Who is in the board's call right now, from the call server's webhooks. */
+  call_participants: (userIds: string[]) => void;
 }
 
 export interface ClientToServerEvents {

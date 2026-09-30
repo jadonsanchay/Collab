@@ -48,6 +48,18 @@ export const jobQueueDepth = new Gauge({
   registers: [registry],
 });
 
+export const rtcJoinsTotal = new Counter({
+  name: 'collab_rtc_joins_total',
+  help: 'Participants who joined a call, from LiveKit webhooks.',
+  registers: [registry],
+});
+
+export const rtcParticipants = new Gauge({
+  name: 'collab_rtc_participants',
+  help: 'Participants currently in calls, from LiveKit webhooks.',
+  registers: [registry],
+});
+
 export const persistenceBatchesDropped = new Counter({
   name: 'collab_persistence_batches_dropped_total',
   help: 'Write batches given up on after retries.',

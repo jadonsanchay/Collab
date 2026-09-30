@@ -25,6 +25,8 @@ const SHORTCUTS: [string, string][] = [
   ['Reset zoom', '⌘0'],
   ['Fit board', '⇧1'],
   ['Rewind', '⌘⇧H'],
+  ['Mute / unmute (in a call)', '⌘⇧D'],
+  ['Camera on / off (in a call)', '⌘⇧E'],
   ['Command palette', '⌘K'],
   ['Shortcuts', '?'],
 ];
