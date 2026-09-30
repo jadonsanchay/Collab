@@ -24,6 +24,7 @@ const SHORTCUTS: [string, string][] = [
   ['Zoom out', '⌘-'],
   ['Reset zoom', '⌘0'],
   ['Fit board', '⇧1'],
+  ['Rewind', '⌘⇧H'],
   ['Command palette', '⌘K'],
   ['Shortcuts', '?'],
 ];

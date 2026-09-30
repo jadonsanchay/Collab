@@ -9,7 +9,7 @@ import { socket } from '@/common/lib/socket';
 import { useOptionsValue, useSetSelection } from '@/common/store/options.store';
 import { usePresenceStore } from '@/common/store/presence.store';
 import { useMyMoves } from '@/common/store/room.store';
-import { useSetSavedMoves } from '@/common/store/history.store';
+import { isViewingHistory, useSetSavedMoves } from '@/common/store/history.store';
 import { useViewportStore } from '@/common/store/viewport.store';
 import {
   DEFAULT_TEMP_CIRCLE,
@@ -50,6 +50,9 @@ export const useDraw = (blocked: boolean) => {
 
   const handleStartDrawing = (x: number, y: number) => {
     if (!liveCtx || blocked) return;
+
+    // Rewind is showing the past; the board is read-only until "Back to live".
+    if (isViewingHistory()) return;
 
     if (usePresenceStore.getState().following)
       usePresenceStore.getState().setFollowing(null);

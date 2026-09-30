@@ -89,6 +89,10 @@ export const isWidthIncrease = (event: KeyboardEvent): boolean =>
 export const isCommandPalette = (event: KeyboardEvent): boolean =>
   hasModifier(event) && event.key.toLowerCase() === 'k';
 
+/** Cmd/Ctrl+Shift+H opens the Rewind panel. */
+export const isRewind = (event: KeyboardEvent): boolean =>
+  hasModifier(event) && event.shiftKey && event.key.toLowerCase() === 'h';
+
 /** `?` is Shift+/ on every layout that has a dedicated `?` key. */
 export const isShortcutsSheet = (event: KeyboardEvent): boolean =>
   !hasModifier(event) && event.key === '?';

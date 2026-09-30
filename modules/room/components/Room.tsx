@@ -6,6 +6,7 @@ import { ToolbarActionsProvider } from '../modules/toolbar/context/ToolbarAction
 import ConnectionBanner from './ConnectionBanner';
 import Board from '../modules/board';
 import Chat from '../modules/chat';
+import { HistoryBanner, RewindPanel } from '../modules/rewind';
 import Toolbar from '../modules/toolbar';
 import AiSync from './AiSync';
 import CommandPalette from './CommandPalette';
@@ -31,6 +32,8 @@ const Room = () => {
             <ShortcutsSheet />
             <Board />
             <Chat />
+            <RewindPanel />
+            <HistoryBanner />
           </div>
         </ToolbarActionsProvider>
       </RoomContextProvider>

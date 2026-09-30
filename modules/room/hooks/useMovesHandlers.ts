@@ -4,10 +4,15 @@ import { v4 } from 'uuid';
 
 import { isRedo, isTypingTarget, isUndo } from '@/common/lib/keyboard';
 import { socket } from '@/common/lib/socket';
+import { sortMoves, visibleMoves } from '@/common/render/historyView';
 import { useBackground } from '@/common/store/background.store';
 import { useSetSelection } from '@/common/store/options.store';
 import { useMyMoves, useRoom } from '@/common/store/room.store';
-import { useSetSavedMoves } from '@/common/store/history.store';
+import {
+  isViewingHistory,
+  useHistoryView,
+  useSetSavedMoves,
+} from '@/common/store/history.store';
 
 import { CommittedRenderer } from '../render/CommittedRenderer';
 import { useCtx } from '../modules/board/hooks/useCtx';
@@ -24,32 +29,21 @@ export const useMovesHandlers = () => {
   const { clearSelection } = useSetSelection();
 
   const rendererRef = useRef<CommittedRenderer | null>(null);
+  const view = useHistoryView();
 
   // Sorting by the server-assigned `seq` is what makes replay deterministic
   // across clients without needing OT or a CRDT: draw moves are additive, so
   // "same sorted order everywhere" is enough to converge on the same canvas.
-  const sortedMoves = useMemo(() => {
-    const { usersMoves, movesWithoutUser, myMoves } = room;
+  const sortedMoves = useMemo(() => sortMoves(room), [room]);
 
-    const moves = [...movesWithoutUser, ...myMoves];
-
-    usersMoves.forEach((userMoves) => moves.push(...userMoves));
-
-    /**
-     * Order by the server's sequence, which every client receives identically.
-     * `timestamp` came from `Date.now()` on whichever machine drew the stroke,
-     * so two clients could sort overlapping strokes differently and render
-     * different pictures. It stays as the fallback for moves that have not
-     * been through the server, which sort with seq 0.
-     */
-    moves.sort((a, b) => {
-      if (a.seq && b.seq) return a.seq - b.seq;
-
-      return a.timestamp - b.timestamp;
-    });
-
-    return moves;
-  }, [room]);
+  /**
+   * What the committed canvas shows. Live, this is every move. While Rewind
+   * is open it is the prefix up to the cursor, filtered by author. The
+   * renderer's checkpoint makes scrubbing forward an append and scrubbing
+   * back past the checkpoint a full replay; live moves that arrive
+   * meanwhile are stored as usual and appear on return to live.
+   */
+  const shownMoves = useMemo(() => visibleMoves(sortedMoves, view), [sortedMoves, view]);
 
   const copyCanvasToSmall = useCallback(() => {
     if (canvasRef.current && minimapRef.current && bgRef.current) {
@@ -103,10 +97,14 @@ export const useMovesHandlers = () => {
   }, [clearSelection, handleAddMyMove]);
 
   useEffect(() => {
-    rendererRef.current?.schedule(sortedMoves);
-  }, [sortedMoves]);
+    rendererRef.current?.schedule(shownMoves);
+  }, [shownMoves]);
 
   const handleUndo = useCallback(() => {
+    // The past is read-only: undoing while scrubbed back would remove a move
+    // the user cannot even see.
+    if (isViewingHistory()) return;
+
     if (ctx) {
       const move = handleRemoveMyMove();
 
@@ -119,6 +117,8 @@ export const useMovesHandlers = () => {
   }, [ctx, handleRemoveMyMove, clearSelection, addSavedMove]);
 
   const handleRedo = useCallback(() => {
+    if (isViewingHistory()) return;
+
     if (ctx) {
       const move = removeSavedMove();
 

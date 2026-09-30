@@ -2,7 +2,7 @@ import { Redo2, Undo2 } from 'lucide-react';
 
 import HotkeyTooltip from '@/common/components/HotkeyTooltip';
 import { useMyMoves } from '@/common/store/room.store';
-import { useSavedMoves } from '@/common/store/history.store';
+import { useSavedMoves, useViewingHistory } from '@/common/store/history.store';
 
 import { useRefs } from '../../../hooks/useRefs';
 
@@ -11,6 +11,7 @@ const HistoryBtns = () => {
 
   const { myMoves } = useMyMoves();
   const savedMoves = useSavedMoves();
+  const viewingHistory = useViewingHistory();
 
   return (
     <>
@@ -20,7 +21,7 @@ const HistoryBtns = () => {
           className="btn-icon"
           aria-label="Undo"
           ref={undoRef}
-          disabled={!myMoves.length}
+          disabled={!myMoves.length || viewingHistory}
         >
           <Undo2 />
         </button>
@@ -31,7 +32,7 @@ const HistoryBtns = () => {
           className="btn-icon"
           aria-label="Redo"
           ref={redoRef}
-          disabled={!savedMoves.length}
+          disabled={!savedMoves.length || viewingHistory}
         >
           <Redo2 />
         </button>

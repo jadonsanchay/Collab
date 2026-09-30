@@ -12,6 +12,7 @@ import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { isCommandPalette, isTypingTarget } from '@/common/lib/keyboard';
 import { useAiStore } from '@/common/store/ai.store';
 import { useSetBackground, useBackground } from '@/common/store/background.store';
+import { useHistoryStore } from '@/common/store/history.store';
 import { useSetOptions } from '@/common/store/options.store';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { useViewportStore } from '@/common/store/viewport.store';
@@ -33,6 +34,7 @@ const CommandPalette = () => {
   const { handleDownload, handleShare, handleExit, openImageInput } =
     useToolbarActionsContext();
   const ai = useFeatureFlag('ai');
+  const rewind = useFeatureFlag('rewind');
   const { canvasRef, bgRef } = useRefs();
 
   const summarizeWithSketch = () => {
@@ -137,6 +139,11 @@ const CommandPalette = () => {
         )}
 
         <CommandGroup heading="Room">
+          {rewind && (
+            <CommandItem onSelect={run(() => useHistoryStore.getState().setPanelOpen(true))}>
+              Rewind history
+            </CommandItem>
+          )}
           <CommandItem onSelect={run(handleShare)}>Share</CommandItem>
           <CommandItem onSelect={run(handleDownload)}>Download</CommandItem>
           <CommandItem onSelect={run(handleExit)}>Leave room</CommandItem>
