@@ -24,6 +24,7 @@ type Pending =
   | { kind: 'move'; roomId: string; move: Move }
   | { kind: 'remove'; roomId: string; moveIds: string[]; reason: 'undo' | 'remove' }
   | { kind: 'rename'; roomId: string; title: string }
+  | { kind: 'engine'; roomId: string; engine: BoardEngine }
   | { kind: 'chat'; roomId: string; message: ChatMessage };
 
 export type DbPersistenceOptions = {
@@ -184,6 +185,10 @@ export class DbPersistence implements Persistence {
     this.enqueue({ kind: 'rename', roomId, title });
   }
 
+  setEngine(roomId: string, engine: BoardEngine) {
+    this.enqueue({ kind: 'engine', roomId, engine });
+  }
+
   appendChat(roomId: string, message: ChatMessage) {
     this.enqueue({ kind: 'chat', roomId, message });
   }
@@ -311,6 +316,13 @@ export class DbPersistence implements Persistence {
 
         steps.push((tx) =>
           tx.update(boards).set({ title, updatedAt: new Date() }).where(eq(boards.id, roomId)),
+        );
+        i += 1;
+      } else if (item.kind === 'engine') {
+        const { roomId, engine } = item;
+
+        steps.push((tx) =>
+          tx.update(boards).set({ engine, updatedAt: new Date() }).where(eq(boards.id, roomId)),
         );
         i += 1;
       } else {

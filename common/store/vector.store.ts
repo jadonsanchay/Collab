@@ -24,7 +24,7 @@ export const SHAPE_TOOLS: Record<string, ShapeKind> = {
   arrow: 'arrow',
 };
 
-type VectorState = {
+export type VectorState = {
   camera: Camera;
   tool: VectorTool;
   /** Plain mirror of the document for React; the renderer reads it too. */
@@ -38,6 +38,11 @@ type VectorState = {
   connected: boolean;
   /** Editors and owners write; everyone else looks. From the join role. */
   readOnly: boolean;
+  /**
+   * What Rewind is showing instead of the live document, or null when live.
+   * The renderer draws these; the tools refuse to edit while they are set.
+   */
+  historyObjects: BoardObject[] | null;
   setCamera: (camera: Camera) => void;
   setTool: (tool: VectorTool) => void;
   setObjects: (objects: BoardObject[]) => void;
@@ -48,6 +53,7 @@ type VectorState = {
   setStrokeWidth: (width: number) => void;
   setConnected: (connected: boolean) => void;
   setReadOnly: (readOnly: boolean) => void;
+  setHistoryObjects: (objects: BoardObject[] | null) => void;
   reset: () => void;
 };
 
@@ -62,6 +68,7 @@ const INITIAL = {
   strokeWidth: 4,
   connected: false,
   readOnly: false,
+  historyObjects: null as BoardObject[] | null,
 };
 
 /**
@@ -83,5 +90,12 @@ export const useVectorStore = create<VectorState>((set) => ({
   setStrokeWidth: (strokeWidth) => set({ strokeWidth }),
   setConnected: (connected) => set({ connected }),
   setReadOnly: (readOnly) => set({ readOnly }),
+  setHistoryObjects: (historyObjects) => set({ historyObjects }),
   reset: () => set({ ...INITIAL, selection: new Set() }),
 }));
+
+/** The objects on screen: the past while Rewind is scrubbed, else the live document. */
+export const visibleObjects = (state: VectorState) => state.historyObjects ?? state.objects;
+
+/** True while Rewind shows the past, or the role forbids writing. */
+export const isLocked = (state: VectorState) => state.readOnly || state.historyObjects !== null;

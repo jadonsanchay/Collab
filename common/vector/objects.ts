@@ -17,7 +17,7 @@ import type {
 } from '@/common/vector/types';
 import { DEFAULT_FONT_FAMILY, STICKY_SIZE } from '@/common/vector/types';
 
-type Common = { z: string; createdBy: string; now?: number };
+export type Common = { z: string; createdBy: string; now?: number };
 
 const base = (common: Common) => ({
   id: v4(),

@@ -1,20 +1,25 @@
 import type { Server } from 'socket.io';
 
+import { AI_USER_ID } from '@/common/constants/ai';
 import { CANVAS_SIZE } from '@/common/constants/canvasSize';
 import type {
   AiKind,
   AiRequest,
   AiStatus,
   AiStatusUpdate,
+  BoardRect,
   ClientToServerEvents,
   ServerToClientEvents,
 } from '@/common/types/global';
+import { createObject, deleteObjects, readAll } from '@/common/vector/doc';
+import { topZ } from '@/common/vector/order';
 
 import type { BoardStore } from '../boards/BoardStore';
 import type { Config } from '../config';
 import { logger } from '../logger';
 import { aiJobsTotal, aiTokensTotal, jobQueueDepth } from '../ops/metrics';
 import type { SocketData } from '../socket/identity';
+import type { VectorDocStore } from '../vector/docStore';
 import { createAnthropicAgent } from './agent';
 import { createFakeAgent } from './fakeAgent';
 import { createOpenAiAgent } from './openaiAgent';
@@ -26,7 +31,9 @@ import {
 import { createLimits, type LimitOptions } from './limits';
 import { JobQueue, type QueueOptions } from './queue';
 import { SketchParticipant, type ParticipantOptions } from './participant';
+import { placeTargetUnbounded, toObjects } from './toObjects';
 import type { SketchAgent } from './types';
+import type { DrawingProgram } from './schema';
 
 type IOServer = Server<
   ClientToServerEvents,
@@ -57,6 +64,9 @@ const JOB_MEMORY_MS = 60 * 60_000;
 
 /** Recent chat kept per room for `summarize`. */
 const CHAT_MEMORY = 50;
+
+/** Transaction origin for Sketch's writes to a vector document. */
+const AI_ORIGIN = { userId: AI_USER_ID };
 
 const center = (rect: { x: number; y: number; width: number; height: number }) =>
   [rect.x + rect.width / 2, rect.y + rect.height / 2] as [number, number];
@@ -92,12 +102,15 @@ export const createAiService = ({
   boards: rooms,
   config,
   options = {},
+  vectorDocs = null,
 }: {
   io: IOServer;
   /** Moves go through the board store so Sketch's work is persisted too. */
   boards: BoardStore;
   config: Config;
   options?: AiServiceOptions;
+  /** Where Sketch writes on vector boards. Null means it can only draw moves. */
+  vectorDocs?: VectorDocStore | null;
 }) => {
   if (!config.AI_ENABLED) return null;
 
@@ -154,13 +167,60 @@ export const createAiService = ({
     });
   };
 
+  const progressOf = (job: JobRecord) => (done: number, total: number) =>
+    emitStatus(job, 'drawing', `drawing ${done} of ${total}`, { done, total });
+
+  /** Raster boards: the program becomes moves, animated and stored one by one. */
+  const drawMoves = async (job: JobRecord, program: DrawingProgram, target: BoardRect, signal: AbortSignal) => {
+    const planned = interpret(program, target, CANVAS_SIZE, options.timing);
+
+    if (!planned.length) return 0;
+
+    emitStatus(job, 'drawing', undefined, { done: 0, total: planned.length });
+    await participant.animate(job.roomId, job.requestId, planned, signal, progressOf(job));
+
+    return planned.length;
+  };
+
+  /** Vector boards: the program becomes objects written into the Yjs document. */
+  const drawObjects = async (job: JobRecord, program: DrawingProgram, target: BoardRect, signal: AbortSignal) => {
+    if (!vectorDocs) throw new Error('no vector document store');
+
+    const entry = await vectorDocs.open(job.roomId);
+
+    try {
+      const planned = toObjects(
+        program,
+        target,
+        { createdBy: AI_USER_ID, requestId: job.requestId, firstZ: topZ(readAll(entry.doc)) },
+        options.timing,
+      );
+
+      if (!planned.length) return 0;
+
+      emitStatus(job, 'drawing', undefined, { done: 0, total: planned.length });
+      await participant.animateObjects(
+        job.roomId,
+        planned,
+        signal,
+        (object) => createObject(entry.doc, object, AI_ORIGIN),
+        progressOf(job),
+      );
+
+      return planned.length;
+    } finally {
+      vectorDocs.release(job.roomId);
+    }
+  };
+
   const run = async (
     job: JobRecord,
     request: AiRequest,
-    target: NonNullable<ReturnType<typeof placeTarget>>,
+    target: BoardRect,
     signal: AbortSignal,
   ) => {
     const startedAt = Date.now();
+    const vector = rooms.get(job.roomId)?.engine === 'vector';
 
     try {
       emitStatus(job, 'thinking');
@@ -190,7 +250,6 @@ export const createAiService = ({
         return;
       }
 
-      const planned = interpret(result.program, target, CANVAS_SIZE, options.timing);
       const { note } = result.program;
 
       if (result.usage) {
@@ -204,31 +263,18 @@ export const createAiService = ({
           requestId: job.requestId,
           roomId: job.roomId,
           kind: job.kind,
+          engine: vector ? 'vector' : 'raster',
           primitives: result.program.primitives.length,
-          moves: planned.length,
           ...(result.usage ?? {}),
           modelMs: Date.now() - startedAt,
         },
         'ai program received',
       );
 
-      if (planned.length) {
-        emitStatus(job, 'drawing', undefined, { done: 0, total: planned.length });
+      if (vector) await drawObjects(job, result.program, target, signal);
+      else await drawMoves(job, result.program, target, signal);
 
-        await participant.animate(
-          job.roomId,
-          job.requestId,
-          planned,
-          signal,
-          (done, total) =>
-            emitStatus(job, 'drawing', `drawing ${done} of ${total}`, {
-              done,
-              total,
-            }),
-        );
-
-        if (signal.aborted) return;
-      }
+      if (signal.aborted) return;
 
       if (note && participant.isPresent(job.roomId)) participant.say(job.roomId, note);
 
@@ -282,7 +328,11 @@ export const createAiService = ({
         return;
       }
 
-      const target = placeTarget(job.kind, request, CANVAS_SIZE);
+      // An objects board has no edges to clamp to.
+      const target =
+        rooms.get(job.roomId)?.engine === 'vector'
+          ? placeTargetUnbounded(job.kind, request)
+          : placeTarget(job.kind, request, CANVAS_SIZE);
 
       if (!target) {
         emitStatus(job, 'error', 'Select an area of the board first.');
@@ -312,7 +362,7 @@ export const createAiService = ({
      * Only the requester may undo their request. A job still running is
      * aborted first so the pen stops.
      */
-    undo(roomId: string, userId: string, requestId: string): boolean {
+    async undo(roomId: string, userId: string, requestId: string): Promise<boolean> {
       const job = jobs.get(requestId);
 
       if (!job || job.roomId !== roomId || job.userId !== userId) return false;
@@ -322,6 +372,20 @@ export const createAiService = ({
       const room = rooms.get(roomId);
 
       if (!room) return false;
+
+      if (room.engine === 'vector') {
+        if (!vectorDocs) return false;
+
+        const entry = await vectorDocs.open(roomId);
+        const objectIds = readAll(entry.doc)
+          .filter((object) => object.meta?.requestId === requestId)
+          .map((object) => object.id);
+
+        if (objectIds.length) deleteObjects(entry.doc, objectIds, AI_ORIGIN);
+        vectorDocs.release(roomId);
+
+        return objectIds.length > 0;
+      }
 
       const ids: string[] = [];
 

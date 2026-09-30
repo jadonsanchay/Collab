@@ -2,14 +2,27 @@ import { v4 } from 'uuid';
 
 import { socket } from '@/common/lib/socket';
 import { useAiStore } from '@/common/store/ai.store';
+import { useRoomStore } from '@/common/store/room.store';
+import { useVectorStore } from '@/common/store/vector.store';
 import { useViewportStore } from '@/common/store/viewport.store';
 import type { AiKind, AiRequest, BoardRect } from '@/common/types/global';
+import { visibleWorld } from '@/common/vector/camera';
 
-/** The board rectangle currently on screen, from the viewport transform. */
+/**
+ * The board rectangle currently on screen: from the viewport transform on a
+ * raster board, from the camera on a vector one. Sketch draws inside it.
+ */
 export const currentViewportRect = (): BoardRect => {
-  const { x, y, scale } = useViewportStore.getState();
   const width = typeof window === 'undefined' ? 0 : window.innerWidth;
   const height = typeof window === 'undefined' ? 0 : window.innerHeight;
+
+  if (useRoomStore.getState().room.engine === 'vector') {
+    const world = visibleWorld(useVectorStore.getState().camera, { width, height });
+
+    return { x: world.x, y: world.y, width: world.w, height: world.h };
+  }
+
+  const { x, y, scale } = useViewportStore.getState();
 
   return { x: -x / scale, y: -y / scale, width: width / scale, height: height / scale };
 };

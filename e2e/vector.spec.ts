@@ -162,3 +162,161 @@ test('an objects board survives a reload with its objects intact', async ({ brow
     await context.close();
   }
 });
+
+/** How many objects the page's document mirror holds; -1 before the board is up. */
+const objectCount = (page: Page) =>
+  page.evaluate(() => {
+    const handle = (window as unknown as { collabVector?: { store: { getState: () => { objects: unknown[] } } } })
+      .collabVector;
+
+    return handle ? handle.store.getState().objects.length : -1;
+  });
+
+test('Sketch draws editable objects on an objects board and Undo Sketch removes them everywhere', async ({
+  browser,
+}) => {
+  const aliceContext = await browser.newContext();
+  const bobContext = await browser.newContext();
+  const alice = await aliceContext.newPage();
+  const bob = await bobContext.newPage();
+
+  try {
+    const roomId = await createVectorRoom(alice, 'Alice');
+    await joinRoom(bob, roomId, 'Bob');
+    await expect(alice.getByText('Connecting to the document')).toHaveCount(0);
+
+    await alice.getByRole('button', { name: 'Ask Sketch' }).click();
+    await alice.locator('#sketch-prompt').fill('a house');
+    await alice.getByRole('button', { name: 'Draw' }).click();
+
+    // Sketch joins as a member and its five primitives arrive as objects.
+    await expect(bob.getByTitle(/^Sketch/)).toBeVisible();
+    await expect.poll(() => objectCount(bob), { message: "Sketch's objects should reach the other window" }).toBe(5);
+    await expect.poll(() => objectCount(alice)).toBe(5);
+
+    // Real objects: select all picks them up.
+    await bob.mouse.move(600, 400);
+    await bob.keyboard.press('ControlOrMeta+a');
+    await expect
+      .poll(() =>
+        bob.evaluate(
+          () =>
+            (window as unknown as { collabVector: { store: { getState: () => { selection: Set<string> } } } })
+              .collabVector.store.getState().selection.size,
+        ),
+      )
+      .toBe(5);
+
+    const undo = alice.getByRole('button', { name: 'Undo Sketch' });
+    await expect(undo).toBeVisible();
+    await expect(bob.getByRole('button', { name: 'Undo Sketch' })).toHaveCount(0);
+
+    await undo.click();
+
+    await expect.poll(() => objectCount(bob), { message: 'undo should remove the objects everywhere' }).toBe(0);
+    await expect.poll(() => objectCount(alice)).toBe(0);
+  } finally {
+    await aliceContext.close();
+    await bobContext.close();
+  }
+});
+
+test('Rewind on an objects board scrubs through the document history', async ({ browser }) => {
+  const context = await browser.newContext();
+  const page = await context.newPage();
+
+  const drawStroke = async (x: number, y: number) => {
+    await page.mouse.move(x, y);
+    await page.mouse.down();
+    await page.mouse.move(x + 60, y + 60, { steps: 8 });
+    await page.mouse.up();
+  };
+
+  try {
+    await createVectorRoom(page, 'Alice');
+    await expect(page.getByText('Connecting to the document')).toHaveCount(0);
+
+    await page.getByRole('radio', { name: 'Pen' }).click();
+    await drawStroke(300, 300);
+    await expect.poll(() => inkAround(page, 330, 330)).toBeGreaterThan(0);
+    await drawStroke(700, 300);
+    await expect.poll(() => inkAround(page, 730, 330)).toBeGreaterThan(0);
+
+    await page.mouse.move(50, 50);
+    await page.keyboard.press('Meta+Shift+h');
+    const panel = page.getByRole('region', { name: 'Rewind' });
+    await expect(panel).toBeVisible();
+    await expect(panel.getByText('2 / 2')).toBeVisible();
+
+    // One change back: the second stroke is gone, the first stays.
+    const slider = panel.getByRole('slider');
+    await slider.focus();
+    await page.keyboard.press('ArrowLeft');
+
+    await expect(page.getByRole('status')).toContainText('Viewing history');
+    await expect(panel.getByText('1 / 2')).toBeVisible();
+    await expect.poll(() => inkAround(page, 730, 330)).toBe(0);
+    expect(await inkAround(page, 330, 330)).toBeGreaterThan(0);
+
+    // Drawing is refused while viewing history.
+    await drawStroke(500, 500);
+    await page.waitForTimeout(300);
+    expect(await inkAround(page, 530, 530)).toBe(0);
+
+    await page.getByRole('button', { name: 'Back to live' }).click();
+    await expect(page.getByRole('status')).toHaveCount(0);
+    await expect.poll(() => inkAround(page, 730, 330)).toBeGreaterThan(0);
+  } finally {
+    await context.close();
+  }
+});
+
+test('a drawing board converts to an objects board for everyone in it', async ({ browser }) => {
+  const aliceContext = await browser.newContext();
+  const bobContext = await browser.newContext();
+  const alice = await aliceContext.newPage();
+  const bob = await bobContext.newPage();
+
+  try {
+    await alice.goto('/');
+    await alice.getByLabel('Enter your name').fill('Alice');
+    await alice.getByRole('button', { name: 'Create' }).click();
+    await expect(alice).toHaveURL(/\/[A-Za-z0-9_-]{8}$/);
+    await expect(alice.locator('canvas.z-10')).toHaveCount(1);
+    const roomId = new URL(alice.url()).pathname.slice(1);
+
+    await bob.goto(`/${roomId}`);
+    await bob.getByLabel('Enter your name').fill('Bob');
+    await bob.getByRole('button', { name: 'Enter room' }).click();
+    await expect(bob.locator('canvas.z-10')).toHaveCount(1);
+
+    // A raster stroke first.
+    await alice.mouse.move(500, 380);
+    await alice.mouse.down();
+    await alice.mouse.move(560, 440, { steps: 10 });
+    await alice.mouse.move(620, 480, { steps: 10 });
+    await alice.mouse.up();
+    await expect.poll(() => objectCount(bob)).toBe(-1);
+
+    await alice.mouse.move(50, 50);
+    await alice.keyboard.press('Meta+k');
+    await alice.getByText('Convert to objects board (beta)').click();
+
+    // Both windows remount as objects boards holding the stroke as an object.
+    await expect(alice.locator(VECTOR_CANVAS)).toHaveCount(1);
+    await expect(bob.locator(VECTOR_CANVAS)).toHaveCount(1);
+    await expect.poll(() => objectCount(alice)).toBe(1);
+    await expect.poll(() => objectCount(bob)).toBe(1);
+    await expect.poll(() => inkAround(bob, 560, 440)).toBeGreaterThan(0);
+
+    // A reload comes back as an objects board too.
+    await bob.reload();
+    await bob.getByLabel('Enter your name').fill('Bob');
+    await bob.getByRole('button', { name: 'Enter room' }).click();
+    await expect(bob.locator(VECTOR_CANVAS)).toHaveCount(1);
+    await expect.poll(() => objectCount(bob)).toBe(1);
+  } finally {
+    await aliceContext.close();
+    await bobContext.close();
+  }
+});

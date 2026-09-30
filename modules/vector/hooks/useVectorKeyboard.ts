@@ -3,9 +3,9 @@ import { useEffect } from 'react';
 import { isRedo, isTypingTarget, isUndo } from '@/common/lib/keyboard';
 import { createObject, deleteObjects, updateObject } from '@/common/vector/doc';
 import { bottomZ, topZ, zStep } from '@/common/vector/order';
-import { useVectorStore, type VectorTool } from '@/common/store/vector.store';
+import { isLocked, useVectorStore, type VectorTool } from '@/common/store/vector.store';
 
-import { duplicateObject } from '../lib/objects';
+import { duplicateObject } from '@/common/vector/objects';
 import type { VectorSession } from '../lib/session';
 
 const TOOL_KEYS: Record<string, VectorTool> = {
@@ -39,7 +39,8 @@ export const useVectorKeyboard = (session: VectorSession | null) => {
       if (isTypingTarget(event.target)) return;
 
       const store = useVectorStore.getState();
-      const { objects, selection, readOnly, editingId } = store;
+      const { objects, selection, editingId } = store;
+      const readOnly = isLocked(store);
       const modifier = event.metaKey || event.ctrlKey;
       const selected = objects.filter((object) => selection.has(object.id));
 

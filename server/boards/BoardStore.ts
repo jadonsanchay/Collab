@@ -219,6 +219,14 @@ export class BoardStore {
     return ok;
   }
 
+  setEngine(roomId: string, engine: BoardEngine): boolean {
+    const ok = this.rooms.setEngine(roomId, engine);
+
+    if (ok) this.persistence?.setEngine(roomId, engine);
+
+    return ok;
+  }
+
   appendChat(roomId: string, message: ChatMessage): boolean {
     const ok = this.rooms.appendChat(roomId, message);
 

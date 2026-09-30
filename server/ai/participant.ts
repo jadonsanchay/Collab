@@ -3,14 +3,17 @@ import type { Server } from 'socket.io';
 import { AI_USER_COLOR, AI_USER_ID, AI_USER_NAME } from '@/common/constants/ai';
 import type {
   ClientToServerEvents,
+  CtxOptions,
   Move,
   Point,
   ServerToClientEvents,
 } from '@/common/types/global';
+import type { BoardObject } from '@/common/vector/types';
 
 import type { BoardStore } from '../boards/BoardStore';
 import type { SocketData } from '../socket/identity';
 import type { PlannedMove } from './interpreter';
+import type { PlannedObject } from './toObjects';
 
 type IOServer = Server<
   ClientToServerEvents,
@@ -29,6 +32,13 @@ export type ParticipantOptions = {
 export const DEFAULT_PARTICIPANT: ParticipantOptions = {
   idleLeaveMs: 10 * 60_000,
   tickMs: 33,
+};
+
+/** A pen path to trace, optionally streamed to raster clients as a live stroke. */
+type TraceItem = {
+  cursorPath: Point[];
+  durationMs: number;
+  liveStroke?: { strokeId: string; options: CtxOptions };
 };
 
 /** Cumulative distance to each vertex, for walking a path by fraction. */
@@ -168,7 +178,12 @@ export class SketchParticipant {
 
       if (signal.aborted || !this.isPresent(roomId)) return;
 
-      await this.trace(roomId, item, signal);
+      const liveStroke =
+        item.payload.options.shape === 'line'
+          ? { strokeId: item.payload.clientId, options: item.payload.options }
+          : undefined;
+
+      await this.trace(roomId, { cursorPath: item.cursorPath, durationMs: item.durationMs, liveStroke }, signal);
 
       if (signal.aborted || !this.isPresent(roomId)) return;
 
@@ -187,14 +202,48 @@ export class SketchParticipant {
     return stored;
   }
 
+  /**
+   * The objects-board counterpart of `animate`: the cursor traces each
+   * object's outline, then `write` puts the object in the document (the sync
+   * server carries it to every window). Returns the objects written.
+   */
+  async animateObjects(
+    roomId: string,
+    planned: PlannedObject[],
+    signal: AbortSignal,
+    write: (object: BoardObject) => void,
+    onProgress?: (done: number, total: number) => void,
+  ): Promise<BoardObject[]> {
+    const written: BoardObject[] = [];
+
+    this.touch(roomId);
+
+    await planned.reduce(async (previous, item, index) => {
+      await previous;
+
+      if (signal.aborted || !this.isPresent(roomId)) return;
+
+      await this.trace(roomId, { cursorPath: item.cursorPath, durationMs: item.durationMs }, signal);
+
+      if (signal.aborted || !this.isPresent(roomId)) return;
+
+      write(item.object);
+      written.push(item.object);
+
+      onProgress?.(index + 1, planned.length);
+    }, Promise.resolve());
+
+    return written;
+  }
+
   stop() {
     this.idleTimers.forEach((timer) => clearTimeout(timer));
     this.idleTimers.clear();
   }
 
-  /** Walks the cursor along one move's path over its duration. */
-  private trace(roomId: string, item: PlannedMove, signal: AbortSignal) {
-    const { cursorPath, durationMs, payload } = item;
+  /** Walks the cursor along a path over its duration. */
+  private trace(roomId: string, item: TraceItem, signal: AbortSignal) {
+    const { cursorPath, durationMs, liveStroke } = item;
     const { tickMs } = this.options;
 
     if (!cursorPath.length) return Promise.resolve();
@@ -202,22 +251,20 @@ export class SketchParticipant {
     const steps = Math.max(1, Math.round(durationMs / tickMs));
     const distances = cumulative(cursorPath);
     const total = distances[distances.length - 1];
-    const isLine = payload.options.shape === 'line';
-    const strokeId = payload.clientId;
 
     // The live stroke is not volatile, unlike a human's: a volatile packet
     // is dropped whenever the previous write has not flushed yet, and these
     // are emitted in the same tick as a cursor update or a committed move,
     // so they would be dropped almost every time. They are one packet per
     // tick, so reliability is affordable here.
-    if (isLine) {
+    if (liveStroke) {
       this.io
         .to(roomId)
         .emit(
           'live_stroke_start',
           AI_USER_ID,
-          strokeId,
-          payload.options,
+          liveStroke.strokeId,
+          liveStroke.options,
           cursorPath[0],
         );
     }
@@ -227,8 +274,8 @@ export class SketchParticipant {
       let lastDistance = 0;
 
       const finish = () => {
-        if (isLine) {
-          this.io.to(roomId).emit('live_stroke_end', AI_USER_ID, strokeId);
+        if (liveStroke) {
+          this.io.to(roomId).emit('live_stroke_end', AI_USER_ID, liveStroke.strokeId);
         }
 
         resolve();
@@ -248,7 +295,7 @@ export class SketchParticipant {
 
         this.moveCursor(roomId, point);
 
-        if (isLine) {
+        if (liveStroke) {
           // Every vertex passed since the last tick, then the pen position,
           // so corners are not cut between two updates.
           const passed = cursorPath.filter(
@@ -257,7 +304,7 @@ export class SketchParticipant {
 
           this.io
             .to(roomId)
-            .emit('live_stroke_points', AI_USER_ID, strokeId, [...passed, point]);
+            .emit('live_stroke_points', AI_USER_ID, liveStroke.strokeId, [...passed, point]);
 
           lastDistance = distance;
         }

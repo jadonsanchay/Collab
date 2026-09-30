@@ -239,7 +239,7 @@ export const registerSocketHandlers = (
           parsed.data,
           socket.id,
           parsedOptions.data?.title,
-          parsedOptions.data?.engine ?? 'raster',
+          parsedOptions.data?.engine ?? deps.features.defaultEngine ?? 'raster',
         );
 
         socket.join(roomId);
@@ -677,7 +677,7 @@ export const registerSocketHandlers = (
 
     socket.on(
       'ai_undo',
-      safeHandler('ai_undo', (requestId) => {
+      safeHandler('ai_undo', async (requestId) => {
         const roomId = getRoomId();
         if (!roomId || !deps.ai) return;
 
@@ -688,7 +688,7 @@ export const registerSocketHandlers = (
           return;
         }
 
-        deps.ai.undo(roomId, userId, parsed.data);
+        await deps.ai.undo(roomId, userId, parsed.data);
       }),
     );
 

@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
+import { useDefaultEngine, useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/store/room.store';
 import {
@@ -25,6 +25,12 @@ const Home = () => {
   const [vectorEngine, setVectorEngine] = useState(false);
   const persistent = useFeatureFlag('persistent');
   const vectorAvailable = useFeatureFlag('vector');
+  const defaultEngine = useDefaultEngine();
+
+  // The server's default is the box's starting state; the person can still flip it.
+  useEffect(() => {
+    setVectorEngine(defaultEngine === 'vector');
+  }, [defaultEngine]);
 
   const router = useRouter();
 
@@ -34,7 +40,7 @@ const Home = () => {
 
   useEffect(() => {
     socket.on('created', (roomIdFromServer) => {
-      setAtomRoomId(roomIdFromServer);
+      setAtomRoomId(roomIdFromServer, 'owner');
       router.push(roomIdFromServer);
     });
 
@@ -73,10 +79,13 @@ const Home = () => {
   const handleCreateRoom = () => {
     if (!parsedUsername.success) return;
 
-    // Only sent when it means something: a trailing `undefined` would cross
-    // the wire as `null`, which is not "no options".
-    if (vectorEngine) socket.emit('create_room', parsedUsername.data, { engine: 'vector' });
-    else socket.emit('create_room', parsedUsername.data);
+    // The choice is explicit whenever the server offers one. Never a trailing
+    // `undefined`: it would cross the wire as `null`, which is not "no options".
+    if (vectorAvailable) {
+      socket.emit('create_room', parsedUsername.data, { engine: vectorEngine ? 'vector' : 'raster' });
+    } else {
+      socket.emit('create_room', parsedUsername.data);
+    }
   };
 
   const handleJoinRoom = (e: FormEvent<HTMLFormElement>) => {

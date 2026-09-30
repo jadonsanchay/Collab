@@ -5,17 +5,19 @@ import { getMyUserId } from '@/common/lib/identity';
 import { socket } from '@/common/lib/socket';
 import { VectorRenderer } from '@/common/render/vector/Renderer';
 import { useMyRole, useRoom } from '@/common/store/room.store';
-import { useVectorStore, type VectorTool } from '@/common/store/vector.store';
+import { useVectorStore, type VectorTool, visibleObjects } from '@/common/store/vector.store';
 
 import CursorBroadcaster from '@/modules/room/modules/board/components/CursorBroadcaster';
 import CursorLayer from '@/modules/room/modules/board/components/CursorLayer';
 import { usePresenceSync } from '@/modules/room/hooks/usePresenceSync';
 import { useViewportBroadcast } from '@/modules/room/modules/board/hooks/useViewportBroadcast';
+import { HistoryBanner } from '@/modules/room/modules/rewind';
 
 import { useVectorInteractions } from '../hooks/useVectorInteractions';
 import { useVectorKeyboard } from '../hooks/useVectorKeyboard';
 import { openVectorSession, type VectorSession } from '../lib/session';
 import TextEditorOverlay from './TextEditorOverlay';
+import VectorRewindPanel from './VectorRewindPanel';
 import VectorToolbar from './VectorToolbar';
 import VectorZoomControls from './VectorZoomControls';
 
@@ -79,13 +81,13 @@ const VectorBoard = () => {
     window.addEventListener('resize', resize);
 
     const unsubscribe = useVectorStore.subscribe((state, previous) => {
-      if (state.objects !== previous.objects) renderer.setObjects(state.objects);
+      if (visibleObjects(state) !== visibleObjects(previous)) renderer.setObjects(visibleObjects(state));
       if (state.camera !== previous.camera) renderer.setCamera(state.camera);
       if (state.selection !== previous.selection) renderer.setSelection({ ids: state.selection });
     });
 
     const initial = useVectorStore.getState();
-    renderer.setObjects(initial.objects);
+    renderer.setObjects(visibleObjects(initial));
     renderer.setCamera(initial.camera);
     renderer.setSelection({ ids: initial.selection });
 
@@ -127,6 +129,8 @@ const VectorBoard = () => {
       {session && <TextEditorOverlay session={session} />}
       <VectorToolbar session={session} />
       <VectorZoomControls contentBounds={contentBounds} />
+      <HistoryBanner />
+      <VectorRewindPanel />
     </div>
   );
 };

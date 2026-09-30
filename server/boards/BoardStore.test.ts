@@ -26,6 +26,7 @@ const fakePersistence = (stored: Record<string, HydratedRoom> = {}) => {
     appendMove: record('appendMove'),
     removeMoves: record('removeMoves'),
     renameRoom: record('renameRoom'),
+    setEngine: record('setEngine'),
     appendChat: record('appendChat'),
     flush: async () => {},
     close: async () => {},
@@ -155,6 +156,12 @@ describe('BoardStore with persistence', () => {
     expect(calls.filter((call) => call.method === 'renameRoom')).toEqual([
       { method: 'renameRoom', args: [roomId, 'Retro'] },
     ]);
+
+    expect(boards.setEngine(roomId, 'vector')).toBe(true);
+    expect(boards.get(roomId)?.engine).toBe('vector');
+    expect(calls.filter((call) => call.method === 'setEngine')).toEqual([
+      { method: 'setEngine', args: [roomId, 'vector'] },
+    ]);
     expect(calls.filter((call) => call.method === 'appendChat')).toEqual([
       { method: 'appendChat', args: [roomId, message] },
     ]);
@@ -217,6 +224,7 @@ describe('BoardStore with persistence', () => {
       appendMove: () => {},
       removeMoves: () => {},
       renameRoom: () => {},
+      setEngine: () => {},
       appendChat: () => {},
       flush: async () => {},
       close: async () => {},

@@ -275,6 +275,17 @@ export class RoomStore {
     return true;
   }
 
+  /** Switches a room's engine; the caller has already converted its content. */
+  setEngine(roomId: string, engine: BoardEngine): boolean {
+    const room = this.rooms.get(roomId);
+
+    if (!room) return false;
+
+    room.engine = engine;
+
+    return true;
+  }
+
   /** Appends a chat line, keeping only the most recent `MAX_CHAT_HISTORY`. */
   appendChat(roomId: string, message: ChatMessage): boolean {
     const room = this.rooms.get(roomId);

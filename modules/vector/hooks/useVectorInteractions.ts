@@ -8,10 +8,10 @@ import { hitsObject, nearestSide, normalizeRect, rectsIntersect, topmostAt } fro
 import { topZ } from '@/common/vector/order';
 import type { Anchor, BoardObject, Point, Rect } from '@/common/vector/types';
 import { STICKY_FILLS, TEXT_FIELDS } from '@/common/vector/types';
-import { SHAPE_TOOLS, useVectorStore } from '@/common/store/vector.store';
+import { isLocked, SHAPE_TOOLS, useVectorStore } from '@/common/store/vector.store';
 
+import { childrenOf, newConnector, newFrame, newShape, newSticky, newStroke, newText } from '@/common/vector/objects';
 import type { VectorSession } from '../lib/session';
-import { childrenOf, newConnector, newFrame, newShape, newSticky, newStroke, newText } from '../lib/objects';
 import { snapRect } from '../lib/snapping';
 import { angleFromCenter, resizeBox, scaleObjectsInto } from '../lib/transform';
 
@@ -66,7 +66,8 @@ export const useVectorInteractions = (
       event.currentTarget.setPointerCapture(event.pointerId);
       shiftRef.current = event.shiftKey;
 
-      const { tool, readOnly, objects, selection } = store();
+      const { tool, objects, selection } = store();
+      const readOnly = isLocked(store());
       const renderer = rendererRef.current;
       const point = toWorld(event);
       const panButton = event.button === 1 || event.button === 2;
@@ -445,8 +446,8 @@ export const useVectorInteractions = (
   /** Double-clicking something with text opens the editor on it. */
   const handleDoubleClick = useCallback(
     (event: { clientX: number; clientY: number }) => {
-      const { objects, readOnly, tool } = store();
-      if (readOnly || (tool !== 'select' && tool !== 'hand')) return;
+      const { objects, tool } = store();
+      if (isLocked(store()) || (tool !== 'select' && tool !== 'hand')) return;
 
       const hit = topmostAt(toWorld(event), objects);
       if (!hit || hit.locked || !TEXT_FIELDS[hit.type]) return;

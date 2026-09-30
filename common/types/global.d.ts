@@ -60,6 +60,8 @@ export interface Features {
   rtc?: boolean;
   /** Vector boards can be created here (Phase 4). */
   vector?: boolean;
+  /** The engine a new board gets when its creator does not pick one. */
+  defaultEngine?: BoardEngine;
   /** Which node answered, once there is more than one (Phase 3). */
   node?: string;
 }
@@ -208,6 +210,8 @@ export interface ServerToClientEvents {
   denied: (action: string, role: Role) => void;
   /** The board was renamed by its owner. */
   room_renamed: (title: string) => void;
+  /** The owner converted the board to another engine; clients remount the board. */
+  board_engine: (engine: BoardEngine) => void;
   /** The owner deleted the board; everyone in it is sent home. */
   board_deleted: () => void;
   /** The owner muted this user's track in the call. Only the target is told. */

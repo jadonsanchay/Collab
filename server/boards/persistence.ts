@@ -24,6 +24,8 @@ export interface Persistence {
   appendMove(roomId: string, move: Move): void;
   removeMoves(roomId: string, moveIds: string[], reason: 'undo' | 'remove'): void;
   renameRoom(roomId: string, title: string): void;
+  /** The board was converted to another engine (Phase 4's upgrade). */
+  setEngine(roomId: string, engine: BoardEngine): void;
   appendChat(roomId: string, message: ChatMessage): void;
   /** Writes everything buffered. Tests and shutdown call it. */
   flush(): Promise<void>;

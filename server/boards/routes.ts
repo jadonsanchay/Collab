@@ -1,24 +1,36 @@
 import { and, desc, eq, inArray, isNull, or } from 'drizzle-orm';
 import express, { type Express, type Request, type Response } from 'express';
 import type { Server } from 'socket.io';
+import * as Y from 'yjs';
 import { z } from 'zod';
 
+import { CANVAS_SIZE } from '@/common/constants/canvasSize';
 import { canManage, canView, GRANTABLE_ROLES, type Role } from '@/common/constants/roles';
 import { renameRoomSchema } from '@/common/schemas/events';
 import { roomIdSchema } from '@/common/schemas/user';
 import type {
+  BoardEngine,
   ClientToServerEvents,
   ServerToClientEvents,
 } from '@/common/types/global';
+import { createObject, readAll } from '@/common/vector/doc';
+import { topZ } from '@/common/vector/order';
+import type { BoardObject } from '@/common/vector/types';
 
+import { toObjects } from '../ai/toObjects';
 import type { RoleResolver } from '../auth/roles';
 import { type AuthDeps, identityFromRequest } from '../auth/routes';
 import type { Identity } from '../auth/session';
 import type { Db } from '../db/client';
 import { boardMembers, boards, boardStars } from '../db/schema';
 import { logger } from '../logger';
+import { createNodeImageLoader } from '../render/nodeLoader';
+import { encodePng, renderBoard } from '../render/renderBoard';
 import type { SocketData } from '../socket/identity';
 import type { ObjectStorage } from '../storage';
+import type { DbVectorPersistence } from '../vector/dbPersistence';
+import type { VectorDocStore } from '../vector/docStore';
+import { movesToObjects, planUpgrade } from '../vector/fromMoves';
 import type { BoardStore } from './BoardStore';
 import {
   createShareLink,
@@ -53,6 +65,12 @@ const createBoardSchema = z.object({
 
 const renameSchema = z.object({ title: renameRoomSchema });
 
+/**
+ * Where a template lands on a new objects board: inside what the default
+ * camera shows, so the board does not open onto blank space.
+ */
+const VECTOR_TEMPLATE_TARGET = { x: 0, y: 0, width: 1400, height: 900 };
+
 type IOServer = Server<
   ClientToServerEvents,
   ServerToClientEvents,
@@ -67,6 +85,10 @@ export type BoardRouteDeps = {
   auth: AuthDeps;
   io: IOServer;
   storage: ObjectStorage;
+  vectorDocs: VectorDocStore;
+  /** The update log behind vector documents, which Rewind replays. */
+  vectorPersistence: DbVectorPersistence;
+  defaultEngine: BoardEngine;
 };
 
 /** A board as the dashboard shows it. */
@@ -88,6 +110,7 @@ export type BoardCard = {
  */
 export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
   const json = express.json({ limit: '4kb' });
+  const imageLoader = createNodeImageLoader(deps.storage);
 
   /** Identity, board id and role for an owner-only route; answers the error itself. */
   const ownerContext = async (
@@ -237,7 +260,7 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
     }
 
     const title = body.data.title?.trim() || (template.id === 'blank' ? undefined : template.name);
-    const engine = body.data.engine ?? 'raster';
+    const engine = body.data.engine ?? deps.defaultEngine;
     const roomId = await deps.boards.createDetached(
       identity.userId,
       identity.name ?? 'Anonymous',
@@ -245,10 +268,21 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
       engine,
     );
 
-    // Templates are raster moves; a vector board starts empty until Phase 4's
-    // object templates arrive.
+    // The same drawing program seeds either engine: moves on a raster board,
+    // objects in the document of a vector one.
     if (engine === 'raster') {
       templateMoves(template).forEach((payload) => deps.boards.addMove(roomId, identity.userId, payload));
+    } else if (template.program.primitives.length) {
+      const entry = await deps.vectorDocs.open(roomId);
+      const planned = toObjects(template.program, VECTOR_TEMPLATE_TARGET, {
+        createdBy: identity.userId,
+        firstZ: 'a0',
+      });
+
+      entry.doc.transact(() => {
+        planned.forEach(({ object }) => createObject(entry.doc, object));
+      }, { userId: identity.userId });
+      deps.vectorDocs.release(roomId);
     }
 
     res.status(201).json({ id: roomId, title: deps.boards.get(roomId)?.title });
@@ -306,7 +340,20 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
       context.identity.userId,
       context.identity.name ?? 'Anonymous',
       `${source.title} (copy)`,
+      source.engine ?? 'raster',
     );
+
+    if (source.engine === 'vector') {
+      // The document's current state, as one update, into the copy's document.
+      const [from, to] = await Promise.all([
+        deps.vectorDocs.open(context.boardId),
+        deps.vectorDocs.open(copyId),
+      ]);
+
+      Y.applyUpdate(to.doc, Y.encodeStateAsUpdate(from.doc), { userId: context.identity.userId });
+      deps.vectorDocs.release(context.boardId);
+      deps.vectorDocs.release(copyId);
+    }
 
     deps.boards.movesSince(context.boardId, 0).forEach((move) => {
       const { id, timestamp, seq, userId, meta, ...payload } = move;
@@ -315,6 +362,113 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
     });
 
     res.status(201).json({ id: copyId, title: deps.boards.get(copyId)?.title });
+  });
+
+  /**
+   * "Convert to objects": a raster board becomes a vector one. Owners only,
+   * one way. Moves become objects when the pixel eraser was never used;
+   * otherwise the erased picture is flattened to one locked image and
+   * later text and images stay editable (see `planUpgrade`). Everyone in
+   * the room remounts the board on `board_engine`.
+   */
+  app.post('/api/boards/:id/upgrade', async (req, res) => {
+    const context = await ownerContext(req, res);
+    if (!context) return;
+
+    const room = deps.boards.get(context.boardId);
+
+    if (!room) {
+      res.status(404).json({ error: 'no such board' });
+      return;
+    }
+
+    if (room.engine === 'vector') {
+      res.status(409).json({ error: 'already an objects board' });
+      return;
+    }
+
+    const ownerId = context.identity.userId;
+    const plan = planUpgrade(deps.boards.movesSince(context.boardId, 0));
+    const entry = await deps.vectorDocs.open(context.boardId);
+
+    try {
+      let objects: BoardObject[];
+      const firstZ = topZ(readAll(entry.doc));
+
+      if (plan.strategy === 'image') {
+        const canvas = await renderBoard(plan.flattened, { loader: imageLoader, background: null });
+        const key = `boards/${context.boardId}/legacy/${room.seq}.png`;
+
+        await deps.storage.put(key, await encodePng(canvas), 'image/png');
+
+        const legacy: BoardObject = {
+          id: `legacy:${room.seq}`,
+          type: 'image',
+          x: 0,
+          y: 0,
+          w: CANVAS_SIZE.width,
+          h: CANVAS_SIZE.height,
+          rotation: 0,
+          z: firstZ,
+          createdBy: ownerId,
+          createdAt: Date.now(),
+          locked: true,
+          url: deps.storage.publicUrl(key),
+          naturalW: canvas.width,
+          naturalH: canvas.height,
+          meta: { legacy: true },
+        };
+
+        objects = [legacy, ...movesToObjects(plan.after, ownerId, { firstZ: topZ([legacy]) })];
+      } else {
+        objects = movesToObjects(plan.moves, ownerId, { firstZ });
+      }
+
+      entry.doc.transact(() => {
+        objects.forEach((object) => createObject(entry.doc, object));
+      }, { userId: ownerId });
+
+      deps.boards.setEngine(context.boardId, 'vector');
+      deps.io.to(context.boardId).emit('board_engine', 'vector');
+
+      logger.info(
+        { boardId: context.boardId, strategy: plan.strategy, objects: objects.length },
+        'board upgraded to objects',
+      );
+
+      res.json({ engine: 'vector', strategy: plan.strategy, objects: objects.length });
+    } catch (error) {
+      logger.error({ err: error, boardId: context.boardId }, 'upgrade failed');
+      res.status(500).json({ error: 'the board could not be converted' });
+    } finally {
+      deps.vectorDocs.release(context.boardId);
+    }
+  });
+
+  /**
+   * The vector document's update log, oldest first, for Rewind: applying
+   * updates 1..k to an empty document gives the board as it was at k.
+   * Base64 because JSON has no bytes.
+   */
+  app.get('/api/boards/:id/doc-updates', async (req, res) => {
+    const context = await memberContext(req, res);
+    if (!context) return;
+
+    if (deps.boards.get(context.boardId)?.engine !== 'vector') {
+      res.status(404).json({ error: 'not an objects board' });
+      return;
+    }
+
+    const rows = await deps.vectorPersistence.updatesUpTo(context.boardId, Number.MAX_SAFE_INTEGER);
+
+    res.json({
+      latestSeq: rows.length ? Number(rows[rows.length - 1].seq) : 0,
+      updates: rows.map((row) => ({
+        seq: Number(row.seq),
+        userId: row.userId,
+        update: Buffer.from(row.update).toString('base64'),
+      })),
+    });
   });
 
   app.post('/api/boards/:id/star', async (req, res) => {

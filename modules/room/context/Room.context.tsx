@@ -211,6 +211,11 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       setRoom((prev) => ({ ...prev, title }));
     });
 
+    socket.on('board_engine', (engine) => {
+      setRoom((prev) => ({ ...prev, engine }));
+      toast(engine === 'vector' ? 'This board is now an objects board.' : 'This board is now a drawing board.');
+    });
+
     socket.on('board_deleted', () => {
       toast.warning('The owner deleted this board.');
       router.push('/');
@@ -235,6 +240,7 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       socket.off('user_disconnected');
       socket.off('rate_limited');
       socket.off('room_renamed');
+      socket.off('board_engine');
       socket.off('denied');
       socket.off('board_deleted');
     };

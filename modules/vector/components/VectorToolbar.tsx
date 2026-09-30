@@ -4,6 +4,7 @@ import {
   Circle,
   Copy,
   Eraser,
+  FileDown,
   Frame,
   Hand,
   Minus,
@@ -27,12 +28,15 @@ import {
   PopoverTrigger,
 } from '@/common/components/ui/popover';
 import { Slider } from '@/common/components/ui/slider';
+import { useRoom } from '@/common/store/room.store';
+import { isLocked, useVectorStore, type VectorTool } from '@/common/store/vector.store';
 import { createObject, deleteObjects, updateObject } from '@/common/vector/doc';
+import { duplicateObject } from '@/common/vector/objects';
 import { bottomZ, topZ } from '@/common/vector/order';
-import { useVectorStore, type VectorTool } from '@/common/store/vector.store';
+import SketchPopover from '@/modules/room/modules/toolbar/components/SketchPopover';
 
-import { duplicateObject } from '../lib/objects';
 import type { VectorSession } from '../lib/session';
+import { downloadSvg } from '../lib/svg';
 
 const TOOLS: { tool: VectorTool; label: string; hotkey: string; icon: typeof Pencil }[] = [
   { tool: 'select', label: 'Select', hotkey: 'V', icon: MousePointer2 },
@@ -64,8 +68,9 @@ const VectorToolbar = ({ session }: { session: VectorSession | null }) => {
   const setStrokeWidth = useVectorStore((state) => state.setStrokeWidth);
   const selection = useVectorStore((state) => state.selection);
   const objects = useVectorStore((state) => state.objects);
-  const readOnly = useVectorStore((state) => state.readOnly);
+  const readOnly = useVectorStore(isLocked);
   const setSelection = useVectorStore((state) => state.setSelection);
+  const { id: roomId } = useRoom();
 
   const selected = objects.filter((object) => selection.has(object.id));
   const hasSelection = selected.length > 0 && !readOnly;
@@ -216,6 +221,21 @@ const VectorToolbar = ({ session }: { session: VectorSession | null }) => {
           }
         >
           <Trash2 />
+        </button>
+      </HotkeyTooltip>
+
+      <div className="h-6 w-px bg-white/20" />
+
+      <SketchPopover />
+      <HotkeyTooltip label="Export SVG">
+        <button
+          type="button"
+          className="btn-icon"
+          aria-label="Export SVG"
+          disabled={!objects.length}
+          onClick={() => downloadSvg(objects, `collab-${roomId}.svg`)}
+        >
+          <FileDown />
         </button>
       </HotkeyTooltip>
     </div>

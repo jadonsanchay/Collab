@@ -154,9 +154,13 @@ export const createAppServer = ({
 
   if (database) snapshots = new SnapshotService(boards, database, storage, snapshotOptions);
 
+  // Vector documents: in memory, and in Postgres when there is one.
+  const vectorPersistence = database ? new DbVectorPersistence(database.db) : null;
+  const vectorDocs = new VectorDocStore(vectorPersistence);
+
   // Null unless AI_ENABLED and an agent is available. With it null, no code
   // under server/ai runs and the client is told the feature does not exist.
-  const ai = createAiService({ io, boards, config, options: aiOptions });
+  const ai = createAiService({ io, boards, config, options: aiOptions, vectorDocs });
 
   // Sign-in exists only with a database to keep accounts in and a secret to
   // sign sessions with. Guests need neither.
@@ -165,9 +169,6 @@ export const createAppServer = ({
   const rtc = rtcSettings(config);
   const roster = rtc ? new CallRoster() : null;
 
-  // Vector documents: in memory, and in Postgres when there is one.
-  const vectorDocs = new VectorDocStore(database ? new DbVectorPersistence(database.db) : null);
-
   const features: Features = {
     ai: ai !== null,
     rewind: config.REWIND_ENABLED,
@@ -175,6 +176,7 @@ export const createAppServer = ({
     persistent: boards.persistent,
     rtc: rtc !== null,
     vector: true,
+    defaultEngine: config.DEFAULT_ENGINE,
     // Only meaningful once there is more than one node to tell apart.
     ...(redis ? { node: config.NODE_ID ?? hostname() } : {}),
   };
@@ -248,8 +250,18 @@ export const createAppServer = ({
     socket.destroy();
   });
 
-  if (database) {
-    registerBoardRoutes(app, { db: database.db, boards, roles, auth: authDeps, io, storage });
+  if (database && vectorPersistence) {
+    registerBoardRoutes(app, {
+      db: database.db,
+      boards,
+      roles,
+      auth: authDeps,
+      io,
+      storage,
+      vectorDocs,
+      vectorPersistence,
+      defaultEngine: config.DEFAULT_ENGINE,
+    });
   }
 
   if (rtc && roster) {
