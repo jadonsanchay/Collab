@@ -117,6 +117,19 @@ export class BoardStore {
     return created;
   }
 
+  /**
+   * A board created over HTTP (the dashboard): the owner is a member with no
+   * socket yet, held in the grace window so their first visit rejoins rather
+   * than joins. The owner's colour and place are theirs when they arrive.
+   */
+  async createDetached(ownerId: string, ownerName: string, title?: string): Promise<string> {
+    const { roomId } = await this.create(ownerId, ownerName, '', title);
+
+    this.rooms.markOffline(roomId, ownerId);
+
+    return roomId;
+  }
+
   join(roomId: string, userId: string, username: string, socketId: string): RoomUser | null {
     return this.rooms.join(roomId, userId, username, socketId);
   }

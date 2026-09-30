@@ -184,7 +184,9 @@ export const createAppServer = ({
   const authDeps = { config, authConfig, db: database?.db ?? null, guestSecret };
   registerAuthRoutes(app, authDeps);
 
-  if (database) registerBoardRoutes(app, { db: database.db, boards, roles, auth: authDeps });
+  if (database) {
+    registerBoardRoutes(app, { db: database.db, boards, roles, auth: authDeps, io, storage });
+  }
 
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));

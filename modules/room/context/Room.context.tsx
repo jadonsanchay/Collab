@@ -10,6 +10,7 @@ import {
   ReactNode,
 } from 'react';
 
+import { useRouter } from 'next/router';
 import { toast } from 'sonner';
 
 import { getMyUserId } from '@/common/lib/identity';
@@ -42,6 +43,7 @@ export const roomContext = createContext<{
   >;
 }>(null!);
 const RoomContextProvider = ({ children }: { children: ReactNode }) => {
+  const router = useRouter();
   const setRoom = useSetRoom();
   const room = useRoom();
   const { users } = room;
@@ -208,6 +210,11 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       setRoom((prev) => ({ ...prev, title }));
     });
 
+    socket.on('board_deleted', () => {
+      toast.warning('The owner deleted this board.');
+      router.push('/');
+    });
+
     socket.on('denied', (action, role) => {
       const verbs: Record<string, string> = {
         send_msg: 'chat here',
@@ -228,11 +235,13 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       socket.off('rate_limited');
       socket.off('room_renamed');
       socket.off('denied');
+      socket.off('board_deleted');
     };
   }, [
     handleAddUser,
     handleRemoveUser,
     handleSetUserPresence,
+    router,
     setRoom,
     users,
   ]);

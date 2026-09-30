@@ -188,6 +188,8 @@ export interface ServerToClientEvents {
   denied: (action: string, role: Role) => void;
   /** The board was renamed by its owner. */
   room_renamed: (title: string) => void;
+  /** The owner deleted the board; everyone in it is sent home. */
+  board_deleted: () => void;
 }
 
 export interface ClientToServerEvents {

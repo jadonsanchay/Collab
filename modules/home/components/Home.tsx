@@ -1,7 +1,9 @@
 import { FormEvent, useEffect, useState } from 'react';
 
+import Link from 'next/link';
 import { useRouter } from 'next/router';
 
+import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/store/room.store';
 import {
@@ -20,6 +22,7 @@ const Home = () => {
 
   const [roomId, setRoomId] = useState('');
   const [username, setUsername] = useState('');
+  const persistent = useFeatureFlag('persistent');
 
   const router = useRouter();
 
@@ -85,6 +88,12 @@ const Home = () => {
         Collab
       </h1>
       <h3 className="text-xl sm:text-2xl">Real-time whiteboard</h3>
+
+      {persistent && (
+        <Link href="/boards" className="mt-4 text-sm font-semibold underline">
+          My boards →
+        </Link>
+      )}
 
       <label htmlFor="username" className="mt-10 flex flex-col gap-2">
         <span className="self-start font-bold leading-tight">
