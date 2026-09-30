@@ -1,0 +1,36 @@
+# Fly.io: two machines behind one app, long-lived WebSockets, health checks
+# on /readyz. Postgres (Neon or Fly Postgres), Redis and R2 are external and
+# arrive through secrets: `fly secrets set DATABASE_URL=... REDIS_URL=...`.
+app = "collab"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "3000"
+  NODE_ENV = "production"
+  STORAGE = "postgres"
+
+[deploy]
+  # Migrations run before the new version takes traffic.
+  release_command = "node -e \"require('child_process').execSync('npx tsx server/db/migrate.ts',{stdio:'inherit'})\""
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 2
+  processes = ["app"]
+
+  [[http_service.checks]]
+    interval = "15s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/readyz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

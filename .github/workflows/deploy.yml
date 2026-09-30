@@ -1,0 +1,21 @@
+name: Deploy
+
+# Tag-based deploys: pushing v0.x.y builds the image and releases it on
+# Fly. The previous release stays until the new machines pass /readyz.
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    concurrency: deploy-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+
+      - name: Deploy
+        run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

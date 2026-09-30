@@ -1,0 +1,12 @@
+node_modules
+.next
+build
+.data
+test-results
+playwright-report
+coverage
+.git
+docs
+e2e
+*.test.ts
+*.test.tsx

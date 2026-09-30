@@ -26,6 +26,29 @@ const start = async () => {
   const persisted = await createPersistence(config, storage);
   const redis = config.REDIS_URL ? await createRedis(config.REDIS_URL) : null;
 
+  const readinessChecks = [
+    ...(persisted
+      ? [
+          {
+            name: 'database',
+            check: async () => {
+              await persisted.database.db.execute('select 1');
+            },
+          },
+        ]
+      : []),
+    ...(redis
+      ? [
+          {
+            name: 'redis',
+            check: async () => {
+              await redis.client.ping();
+            },
+          },
+        ]
+      : []),
+  ];
+
   const { server, boards, snapshots } = createAppServer({
     nextHandler,
     config,
@@ -33,6 +56,7 @@ const start = async () => {
     database: persisted?.database ?? null,
     storage,
     redis,
+    readinessChecks,
   });
 
   server.listen(port, () => {

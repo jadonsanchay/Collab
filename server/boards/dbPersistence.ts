@@ -15,6 +15,7 @@ import {
   users,
 } from '../db/schema';
 import { logger } from '../logger';
+import { persistenceBatchesDropped } from '../ops/metrics';
 import { type HydratedRoom, MAX_CHAT_HISTORY } from '../rooms/RoomStore';
 import type { ObjectStorage } from '../storage';
 import type { Persistence } from './persistence';
@@ -358,6 +359,7 @@ export class DbPersistence implements Persistence {
       }
 
       // The room still has everything in memory; only the record is behind.
+      persistenceBatchesDropped.inc();
       logger.error({ err: error, dropped: batch.length }, 'persistence batch dropped');
     }
   }

@@ -6,6 +6,7 @@ import type {
 } from '@/common/types/global';
 
 import { logger } from '../logger';
+import { movesTotal } from '../ops/metrics';
 import type { AddMoveResult, RoomStore } from '../rooms/RoomStore';
 import type { RoomUser, ServerRoom } from '../rooms/types';
 import type { Persistence } from './persistence';
@@ -162,6 +163,7 @@ export class BoardStore {
     const result = this.rooms.addMove(roomId, userId, payload, meta);
 
     if (result.status === 'stored') {
+      movesTotal.inc();
       this.persistence?.appendMove(roomId, result.move);
       this.options.onActivity?.(roomId);
     }

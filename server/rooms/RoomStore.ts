@@ -166,6 +166,11 @@ export class RoomStore {
     this.rooms.delete(roomId);
   }
 
+  /** Rooms held in memory right now. */
+  get size(): number {
+    return this.rooms.size;
+  }
+
   has(roomId: string): boolean {
     return this.rooms.has(roomId);
   }

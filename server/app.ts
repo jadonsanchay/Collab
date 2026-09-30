@@ -27,6 +27,8 @@ import { loadConfig, type Config } from './config';
 import type { Database } from './db/client';
 import { users } from './db/schema';
 import { SnapshotService, type SnapshotOptions } from './jobs/snapshots';
+import { type ReadinessCheck, registerOpsRoutes } from './ops/health';
+import { activeRooms, connectedSockets } from './ops/metrics';
 import type { RedisClients } from './redis';
 import { RoomStore } from './rooms/RoomStore';
 import { registerSocketHandlers } from './socket/handlers';
@@ -59,6 +61,7 @@ export const createAppServer = ({
   storage = createStorage(config),
   snapshotOptions = {},
   redis = null,
+  readinessChecks = [],
 }: {
   nextHandler: NextRequestHandler;
   /** Overridable so tests can use grace windows measured in milliseconds. */
@@ -74,6 +77,8 @@ export const createAppServer = ({
   snapshotOptions?: Partial<SnapshotOptions>;
   /** Connected Redis clients, or null for a single node with in-memory limits. */
   redis?: RedisClients | null;
+  /** Dependency pings for `/readyz`. */
+  readinessChecks?: ReadinessCheck[];
 }) => {
   const app = express();
   const server = createServer(app);
@@ -179,6 +184,18 @@ export const createAppServer = ({
     res.send('Hello World');
   });
 
+  io.on('connection', (socket) => {
+    connectedSockets.inc();
+    socket.once('disconnect', () => connectedSockets.dec());
+  });
+
+  // Read at scrape time rather than kept in step by hand.
+  activeRooms.reset();
+  const roomsGauge = setInterval(() => activeRooms.set(rooms.size), 5000);
+  roomsGauge.unref?.();
+  server.once('close', () => clearInterval(roomsGauge));
+
+  registerOpsRoutes(app, readinessChecks);
   registerUploadRoutes(app, { storage, config });
 
   const authDeps = { config, authConfig, db: database?.db ?? null, guestSecret };

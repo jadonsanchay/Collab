@@ -13,6 +13,7 @@ import type {
 import type { BoardStore } from '../boards/BoardStore';
 import type { Config } from '../config';
 import { logger } from '../logger';
+import { aiJobsTotal, aiTokensTotal, jobQueueDepth } from '../ops/metrics';
 import type { SocketData } from '../socket/identity';
 import { createAnthropicAgent } from './agent';
 import { createFakeAgent } from './fakeAgent';
@@ -139,6 +140,12 @@ export const createAiService = ({
     };
 
     io.to(job.roomId).emit('ai_status', update);
+
+    if (['done', 'error', 'refused', 'rate_limited'].includes(status)) {
+      aiJobsTotal.inc({ kind: job.kind, status });
+    }
+
+    jobQueueDepth.set({ queue: 'ai' }, queue.size);
   };
 
   const forgetOldJobs = (now = Date.now()) => {
@@ -185,6 +192,12 @@ export const createAiService = ({
 
       const planned = interpret(result.program, target, CANVAS_SIZE, options.timing);
       const { note } = result.program;
+
+      if (result.usage) {
+        aiTokensTotal.inc({ direction: 'input' }, result.usage.inputTokens);
+        aiTokensTotal.inc({ direction: 'output' }, result.usage.outputTokens);
+        aiTokensTotal.inc({ direction: 'cache_read' }, result.usage.cacheReadTokens);
+      }
 
       logger.info(
         {
