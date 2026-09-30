@@ -8,7 +8,7 @@ import type {
   ServerToClientEvents,
 } from '@/common/types/global';
 
-import type { RoomStore } from '../rooms/RoomStore';
+import type { BoardStore } from '../boards/BoardStore';
 import type { SocketData } from '../socket/identity';
 import type { PlannedMove } from './interpreter';
 
@@ -80,7 +80,7 @@ export class SketchParticipant {
 
   constructor(
     private io: IOServer,
-    private rooms: RoomStore,
+    private rooms: BoardStore,
     options: Partial<ParticipantOptions> = {},
   ) {
     this.options = { ...DEFAULT_PARTICIPANT, ...options };

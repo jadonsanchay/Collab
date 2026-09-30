@@ -10,9 +10,9 @@ import type {
   ServerToClientEvents,
 } from '@/common/types/global';
 
+import type { BoardStore } from '../boards/BoardStore';
 import type { Config } from '../config';
 import { logger } from '../logger';
-import type { RoomStore } from '../rooms/RoomStore';
 import type { SocketData } from '../socket/identity';
 import { createAnthropicAgent } from './agent';
 import { createFakeAgent } from './fakeAgent';
@@ -88,12 +88,13 @@ export const pickProviderAgent = (config: Config): SketchAgent | null => {
 
 export const createAiService = ({
   io,
-  rooms,
+  boards: rooms,
   config,
   options = {},
 }: {
   io: IOServer;
-  rooms: RoomStore;
+  /** Moves go through the board store so Sketch's work is persisted too. */
+  boards: BoardStore;
   config: Config;
   options?: AiServiceOptions;
 }) => {

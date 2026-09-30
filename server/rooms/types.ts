@@ -1,4 +1,4 @@
-import type { Move, User } from '@/common/types/global';
+import type { ChatMessage, Move, User } from '@/common/types/global';
 
 /**
  * A room member. Keyed by the stable `userId` from the handshake, not by
@@ -34,6 +34,12 @@ export type RoomUser = User & {
 };
 
 export type ServerRoom = {
+  /** Shown in the top bar; owners can rename it once boards are persisted. */
+  title: string;
+  /** Who created the board, or null for a board loaded without an owner. */
+  ownerId: string | null;
+  /** The most recent chat, oldest first, replayed to late joiners. */
+  chat: ChatMessage[];
   /** Keyed by userId. Includes users who are offline but still in grace. */
   users: Map<string, RoomUser>;
   /** Keyed by userId. */

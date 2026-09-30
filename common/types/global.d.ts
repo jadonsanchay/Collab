@@ -50,15 +50,27 @@ export interface User {
   offline?: boolean;
 }
 
+/** One chat line as stored and as replayed to late joiners. */
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  /** The author's name at the time, so a departed user is still attributed. */
+  name: string;
+  body: string;
+  createdAt: number;
+}
+
 /**
  * The room snapshot as it crosses the wire, keyed by `userId`. The Maps do not
  * survive the socket encoder, which is why `room` also carries JSON copies of
- * them; only `drawed` is read off this object directly.
+ * them; only `drawed`, `title` and `chat` are read off this object directly.
  */
 export type Room = {
   usersMoves: Map<string, Move[]>;
   drawed: Move[];
   users: Map<string, User>;
+  title?: string;
+  chat?: ChatMessage[];
 };
 
 export interface ClientRoom {

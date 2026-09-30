@@ -2,11 +2,31 @@ import { randomBytes } from 'crypto';
 import { v4 } from 'uuid';
 
 import { COLORS_ARRAY } from '@/common/constants/colors';
-import type { DrawPayload, Move, MoveMeta } from '@/common/types/global';
+import type {
+  ChatMessage,
+  DrawPayload,
+  Move,
+  MoveMeta,
+} from '@/common/types/global';
 
 import type { RoomUser, ServerRoom } from './types';
 
 export const MAX_ROOM_USERS = 12;
+
+/** Chat lines kept per room and replayed to late joiners. */
+export const MAX_CHAT_HISTORY = 100;
+
+export const DEFAULT_TITLE = 'Untitled board';
+
+/** What a persistence layer hands back to rebuild a room in memory. */
+export type HydratedRoom = {
+  title: string;
+  ownerId: string | null;
+  seq: number;
+  /** Every surviving move, any order; all carry `userId`. */
+  moves: Move[];
+  chat: ChatMessage[];
+};
 
 export type RoomStoreOptions = {
   /** How long a disconnected user keeps their place. */
@@ -139,11 +159,15 @@ export class RoomStore {
     userId: string,
     username: string,
     socketId: string,
+    options: { title?: string; roomId?: string } = {},
   ): { roomId: string; user: RoomUser } {
-    let roomId: string;
-    do {
-      roomId = randomBytes(6).toString('base64url');
-    } while (this.rooms.has(roomId));
+    let roomId = options.roomId ?? '';
+
+    if (!roomId || this.rooms.has(roomId)) {
+      do {
+        roomId = randomBytes(6).toString('base64url');
+      } while (this.rooms.has(roomId));
+    }
 
     const user: RoomUser = {
       userId,
@@ -156,6 +180,9 @@ export class RoomStore {
     };
 
     this.rooms.set(roomId, {
+      title: options.title?.trim() || DEFAULT_TITLE,
+      ownerId: userId,
+      chat: [],
       users: new Map([[userId, user]]),
       usersMoves: new Map([[userId, []]]),
       drawed: [],
@@ -165,6 +192,69 @@ export class RoomStore {
     });
 
     return { roomId, user };
+  }
+
+  /**
+   * Rebuilds a room from persisted state, with nobody in it. Every move goes
+   * into `drawed`: its author may return, but their undo history did not
+   * survive the restart, and `drawed` is where authorless-for-now moves
+   * live. The empty-room clock starts at once so an abandoned board is
+   * evicted from memory again after the grace window.
+   */
+  hydrate(roomId: string, data: HydratedRoom, now = Date.now()): ServerRoom {
+    const existing = this.rooms.get(roomId);
+    if (existing) return existing;
+
+    const drawed = [...data.moves].sort((a, b) => a.seq - b.seq);
+    const highest = drawed.reduce((max, move) => Math.max(max, move.seq), 0);
+
+    const room: ServerRoom = {
+      title: data.title || DEFAULT_TITLE,
+      ownerId: data.ownerId,
+      chat: data.chat.slice(-MAX_CHAT_HISTORY),
+      users: new Map(),
+      usersMoves: new Map(),
+      drawed,
+      seq: Math.max(data.seq, highest),
+      clientIds: new Set(drawed.map((move) => move.clientId)),
+      emptySince: now,
+    };
+
+    this.rooms.set(roomId, room);
+
+    return room;
+  }
+
+  /** Renames a room. False when there is no such room. */
+  rename(roomId: string, title: string): boolean {
+    const room = this.rooms.get(roomId);
+
+    if (!room) return false;
+
+    room.title = title.trim() || DEFAULT_TITLE;
+
+    return true;
+  }
+
+  /** Appends a chat line, keeping only the most recent `MAX_CHAT_HISTORY`. */
+  appendChat(roomId: string, message: ChatMessage): boolean {
+    const room = this.rooms.get(roomId);
+
+    if (!room) return false;
+
+    room.chat.push(message);
+    if (room.chat.length > MAX_CHAT_HISTORY) {
+      room.chat.splice(0, room.chat.length - MAX_CHAT_HISTORY);
+    }
+
+    return true;
+  }
+
+  /** The move `undoMove` would remove next, without removing it. */
+  peekLastMove(roomId: string, userId: string): Move | null {
+    const moves = this.rooms.get(roomId)?.usersMoves.get(userId);
+
+    return moves?.length ? moves[moves.length - 1] : null;
   }
 
   /**

@@ -10,6 +10,8 @@ import type {
 } from '@/common/types/global';
 
 import { createAiService, type AiServiceOptions } from './ai';
+import { BoardStore } from './boards/BoardStore';
+import type { Persistence } from './boards/persistence';
 import { loadConfig, type Config } from './config';
 import { RoomStore } from './rooms/RoomStore';
 import { registerSocketHandlers } from './socket/handlers';
@@ -34,12 +36,15 @@ export const createAppServer = ({
   nextHandler,
   config = loadConfig(),
   aiOptions = {},
+  persistence = null,
 }: {
   nextHandler: NextRequestHandler;
   /** Overridable so tests can use grace windows measured in milliseconds. */
   config?: Config;
   /** Overridable so tests can inject an agent and shrink limits and timings. */
   aiOptions?: AiServiceOptions;
+  /** The durability layer, or null for memory-only rooms. */
+  persistence?: Persistence | null;
 }) => {
   const app = express();
   const server = createServer(app);
@@ -73,9 +78,13 @@ export const createAppServer = ({
     },
   });
 
+  // The in-memory store is the source of truth for live rooms; the board
+  // store adds durability on top when a persistence layer is configured.
+  const boards = new BoardStore(rooms, persistence);
+
   // Null unless AI_ENABLED and an agent is available. With it null, no code
   // under server/ai runs and the client is told the feature does not exist.
-  const ai = createAiService({ io, rooms, config, options: aiOptions });
+  const ai = createAiService({ io, boards, config, options: aiOptions });
 
   const features: Features = {
     ai: ai !== null,
@@ -85,7 +94,7 @@ export const createAppServer = ({
   // Order matters: identity runs as middleware, so every handler can rely on
   // socket.data.userId being present and valid.
   registerIdentity(io);
-  registerSocketHandlers(io, rooms, { ai, features });
+  registerSocketHandlers(io, boards, { ai, features });
 
   app.get('/hello', async (_, res) => {
     res.send('Hello World');
@@ -94,5 +103,5 @@ export const createAppServer = ({
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));
 
-  return { app, server, io, rooms, config, ai, features };
+  return { app, server, io, rooms, boards, config, ai, features };
 };

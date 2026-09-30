@@ -1,4 +1,5 @@
 import type { Server } from 'socket.io';
+import { v4 } from 'uuid';
 
 import { aiRequestSchema, aiUndoSchema } from '@/common/schemas/ai';
 import {
@@ -21,8 +22,8 @@ import type {
 } from '@/common/types/global';
 
 import type { AiService } from '../ai';
+import type { BoardStore } from '../boards/BoardStore';
 import { logger } from '../logger';
-import type { RoomStore } from '../rooms/RoomStore';
 import { toPublicUsers } from '../rooms/types';
 import type { SocketData } from './identity';
 import { withinLimit } from './rateLimit';
@@ -60,7 +61,7 @@ export const registerSocketHandlers = (
     Record<string, never>,
     SocketData
   >,
-  rooms: RoomStore,
+  rooms: BoardStore,
   deps: HandlerDeps = DEFAULT_DEPS,
 ) => {
   io.on('connection', (socket) => {
@@ -121,7 +122,7 @@ export const registerSocketHandlers = (
         }
 
         // parsed.data is the sanitized name: trimmed, control characters gone.
-        const { roomId } = rooms.create(userId, parsed.data, socket.id);
+        const { roomId } = await rooms.create(userId, parsed.data, socket.id);
 
         socket.join(roomId);
 
@@ -131,12 +132,15 @@ export const registerSocketHandlers = (
 
     socket.on(
       'check_room',
-      safeHandler('check_room', (roomId) => {
+      safeHandler('check_room', async (roomId) => {
         const parsed = checkRoomSchema.safeParse(roomId);
 
         // An id that cannot exist does not exist. Answering keeps the client
-        // moving instead of waiting on a reply that never comes.
-        socket.emit('room_exists', parsed.success && rooms.has(parsed.data));
+        // moving instead of waiting on a reply that never comes. A room that
+        // is not in memory may still be on disk, so ask the store to load it.
+        const exists = parsed.success && (await rooms.ensureLoaded(parsed.data));
+
+        socket.emit('room_exists', exists);
       }),
     );
 
@@ -162,6 +166,8 @@ export const registerSocketHandlers = (
           );
           return;
         }
+
+        await rooms.ensureLoaded(parsed.data.roomId);
 
         if (
           rooms.join(
@@ -205,7 +211,7 @@ export const registerSocketHandlers = (
 
     socket.on(
       'rejoin_room',
-      safeHandler('rejoin_room', (roomId, lastSeq) => {
+      safeHandler('rejoin_room', async (roomId, lastSeq) => {
         const parsed = rejoinRoomSchema.safeParse({ roomId, lastSeq });
 
         if (!parsed.success) {
@@ -214,6 +220,8 @@ export const registerSocketHandlers = (
           io.to(socket.id).emit('joined', '', true);
           return;
         }
+
+        await rooms.ensureLoaded(parsed.data.roomId);
 
         const room = rooms.get(parsed.data.roomId);
         const existing = room?.users.get(userId);
@@ -449,6 +457,16 @@ export const registerSocketHandlers = (
         io.to(roomId).emit('new_msg', userId, parsed.data);
 
         const author = rooms.get(roomId)?.users.get(userId)?.name ?? 'Someone';
+
+        // Kept for late joiners (and for durability, when configured).
+        rooms.appendChat(roomId, {
+          id: v4(),
+          userId,
+          name: author,
+          body: parsed.data,
+          createdAt: Date.now(),
+        });
+
         deps.ai?.noteChat(roomId, author, parsed.data);
       }),
     );
