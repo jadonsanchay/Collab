@@ -25,6 +25,9 @@ const limiters = {
   // Room churn is the expensive one: each create allocates a room that lives
   // until everyone leaves, so creates and joins share a slower budget.
   room_entry: new RateLimiterMemory({ points: 5, duration: 10 }),
+  // Each one is a model call. The per-room budget in server/ai/limits.ts is
+  // the real cost control; this just stops one person hammering the button.
+  ai_request: new RateLimiterMemory({ points: 3, duration: 10 }),
 };
 
 export type LimitedEvent = keyof typeof limiters;

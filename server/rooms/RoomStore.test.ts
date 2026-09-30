@@ -60,6 +60,7 @@ describe('RoomStore.create', () => {
       socketId: socketFor(ALICE),
       disconnectedAt: null,
       finalizeTimer: null,
+      synthetic: false,
     });
     expect(user.color).toBe(COLORS_ARRAY[0]);
     expect(room?.usersMoves.get(ALICE)).toEqual([]);

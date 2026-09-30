@@ -1,3 +1,4 @@
+import type { AiKind, AiRequest, AiStatus } from '../schemas/ai';
 import type { CtxOptions, Move, Point } from '../schemas/move';
 
 /**
@@ -16,6 +17,31 @@ export type {
   Point,
   Shape,
 } from '../schemas/move';
+
+export type { AiKind, AiRequest, AiStatus, BoardRect } from '../schemas/ai';
+
+/**
+ * Which optional features this server has switched on. Sent once per
+ * connection so flags never ship in the client bundle: the UI for a feature
+ * renders only when the server says it exists.
+ */
+export interface Features {
+  ai: boolean;
+  rewind: boolean;
+  /** Which node answered, once there is more than one (Phase 3). */
+  node?: string;
+}
+
+/** Progress of one AI request, broadcast to the whole room. */
+export interface AiStatusUpdate {
+  requestId: string;
+  /** Who asked. Clients use it to decide whose toasts to show. */
+  userId: string;
+  kind: AiKind;
+  status: AiStatus;
+  message?: string;
+  progress?: { done: number; total: number };
+}
 
 export interface User {
   name: string;
@@ -117,6 +143,9 @@ export interface ServerToClientEvents {
    * can be undone as one action. Clients drop them from every list they hold.
    */
   moves_removed: (moveIds: string[]) => void;
+  /** Sent once on connect. See `Features`. */
+  features: (features: Features) => void;
+  ai_status: (update: AiStatusUpdate) => void;
 }
 
 export interface ClientToServerEvents {
@@ -144,4 +173,8 @@ export interface ClientToServerEvents {
   cursor: (x: number, y: number) => void;
   viewport: (x: number, y: number, scale: number) => void;
   summon: () => void;
+  /** Asks Sketch for something. Ignored when the server has AI switched off. */
+  ai_request: (request: AiRequest) => void;
+  /** Removes everything one request drew. Only the requester may send it. */
+  ai_undo: (requestId: string) => void;
 }

@@ -25,6 +25,12 @@ export type RoomUser = User & {
    * fire against state that no longer exists.
    */
   finalizeTimer: NodeJS.Timeout | null;
+  /**
+   * A server-driven member with no socket, such as the AI teammate. Never
+   * counts toward the room cap, never goes offline, and does not keep an
+   * otherwise empty room alive.
+   */
+  synthetic: boolean;
 };
 
 export type ServerRoom = {
@@ -59,7 +65,7 @@ export type ServerRoom = {
 export const toPublicUser = (user: RoomUser): User => ({
   name: user.name,
   color: user.color,
-  offline: user.socketId === null,
+  offline: user.socketId === null && !user.synthetic,
 });
 
 /** The user list as clients receive it: `[userId, publicUser]` pairs. */

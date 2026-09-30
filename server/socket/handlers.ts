@@ -1,5 +1,6 @@
 import type { Server } from 'socket.io';
 
+import { aiRequestSchema, aiUndoSchema } from '@/common/schemas/ai';
 import {
   checkRoomSchema,
   createRoomSchema,
@@ -16,9 +17,11 @@ import {
 } from '@/common/schemas/events';
 import type {
   ClientToServerEvents,
+  Features,
   ServerToClientEvents,
 } from '@/common/types/global';
 
+import type { AiService } from '../ai';
 import { logger } from '../logger';
 import type { RoomStore } from '../rooms/RoomStore';
 import { toPublicUsers } from '../rooms/types';
@@ -28,6 +31,18 @@ import { safeHandler } from './safeHandler';
 
 /** The `error` half of a Zod `safeParse` result, narrowed to what is logged. */
 type ParseFailure = { issues: { path: PropertyKey[]; message: string }[] };
+
+/** Optional services the handlers can call into, and what to tell clients about them. */
+export type HandlerDeps = {
+  /** Null when the AI teammate is switched off; the AI handlers then drop everything. */
+  ai: AiService | null;
+  features: Features;
+};
+
+const DEFAULT_DEPS: HandlerDeps = {
+  ai: null,
+  features: { ai: false, rewind: true },
+};
 
 /**
  * Registers every socket event. Each handler is wrapped by `safeHandler`,
@@ -47,11 +62,16 @@ export const registerSocketHandlers = (
     SocketData
   >,
   rooms: RoomStore,
+  deps: HandlerDeps = DEFAULT_DEPS,
 ) => {
   io.on('connection', (socket) => {
     // Stable across reconnects, unlike socket.id. Guaranteed by the handshake
     // middleware, which refuses connections without one.
     const { userId } = socket.data;
+
+    // First thing a client learns: which optional features exist here. The
+    // UI for a feature renders only after this says so.
+    socket.emit('features', deps.features);
 
     const throttled = (event: string) => {
       // Debug, not warn: hitting a limit is the system working as intended,
@@ -448,6 +468,56 @@ export const registerSocketHandlers = (
         }
 
         io.to(roomId).emit('new_msg', userId, parsed.data);
+
+        const author = rooms.get(roomId)?.users.get(userId)?.name ?? 'Someone';
+        deps.ai?.noteChat(roomId, author, parsed.data);
+      }),
+    );
+
+    socket.on(
+      'ai_request',
+      safeHandler('ai_request', async (request) => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        // With AI off, the event is dropped like any unknown one: no code
+        // under server/ai runs, and the client never offered the button.
+        if (!deps.ai) {
+          logger.debug({ userId }, 'ignored ai_request: AI disabled');
+          return;
+        }
+
+        if (!(await withinLimit('ai_request', userId))) {
+          throttled('ai_request');
+          socket.emit('rate_limited', 'ai_request');
+          return;
+        }
+
+        const parsed = aiRequestSchema.safeParse(request);
+
+        if (!parsed.success) {
+          dropped('ai_request', parsed.error);
+          return;
+        }
+
+        await deps.ai.request({ roomId, userId }, parsed.data);
+      }),
+    );
+
+    socket.on(
+      'ai_undo',
+      safeHandler('ai_undo', (requestId) => {
+        const roomId = getRoomId();
+        if (!roomId || !deps.ai) return;
+
+        const parsed = aiUndoSchema.safeParse(requestId);
+
+        if (!parsed.success) {
+          dropped('ai_undo', parsed.error);
+          return;
+        }
+
+        deps.ai.undo(roomId, userId, parsed.data);
       }),
     );
 

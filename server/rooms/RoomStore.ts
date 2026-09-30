@@ -47,6 +47,10 @@ const pickColor = (taken: Iterable<RoomUser>): string => {
   return free ?? COLORS_ARRAY[used.size % COLORS_ARRAY.length];
 };
 
+/** Members who are people: the ones the cap and the empty-room clock count. */
+const humanCount = (room: ServerRoom) =>
+  [...room.users.values()].filter((user) => !user.synthetic).length;
+
 /**
  * In-memory room state with no Socket.IO dependency, which is what makes it
  * unit-testable here and swappable for a Postgres-backed implementation behind
@@ -148,6 +152,7 @@ export class RoomStore {
       socketId,
       disconnectedAt: null,
       finalizeTimer: null,
+      synthetic: false,
     };
 
     this.rooms.set(roomId, {
@@ -199,7 +204,9 @@ export class RoomStore {
       return rejoined;
     }
 
-    if (room.users.size >= MAX_ROOM_USERS) return null;
+    // Synthetic members do not count: the AI teammate must never be the
+    // reason a twelfth person is turned away.
+    if (humanCount(room) >= MAX_ROOM_USERS) return null;
 
     const user: RoomUser = {
       userId,
@@ -208,11 +215,46 @@ export class RoomStore {
       socketId,
       disconnectedAt: null,
       finalizeTimer: null,
+      synthetic: false,
     };
 
     room.users.set(userId, user);
     if (!room.usersMoves.has(userId)) room.usersMoves.set(userId, []);
     room.emptySince = null;
+
+    return user;
+  }
+
+  /**
+   * Adds a server-driven member such as the AI teammate. It has no socket,
+   * is exempt from the cap, and does not stop an empty room being swept.
+   * Returns the existing record if it is already there.
+   */
+  addSyntheticUser(
+    roomId: string,
+    userId: string,
+    name: string,
+    color: string,
+  ): RoomUser | null {
+    const room = this.rooms.get(roomId);
+
+    if (!room) return null;
+
+    const existing = room.users.get(userId);
+    if (existing) return existing;
+
+    const user: RoomUser = {
+      userId,
+      name,
+      color,
+      socketId: null,
+      disconnectedAt: null,
+      finalizeTimer: null,
+      synthetic: true,
+    };
+
+    room.users.set(userId, user);
+    if (!room.usersMoves.has(userId)) room.usersMoves.set(userId, []);
 
     return user;
   }
@@ -229,7 +271,7 @@ export class RoomStore {
     const room = this.rooms.get(roomId);
     const user = room?.users.get(userId);
 
-    if (!room || !user) return false;
+    if (!room || !user || user.synthetic) return false;
 
     if (user.finalizeTimer) clearTimeout(user.finalizeTimer);
 
@@ -261,7 +303,9 @@ export class RoomStore {
 
     this.leave(roomId, userId);
 
-    if (room.users.size === 0) room.emptySince = now;
+    if (humanCount(room) === 0 && room.emptySince === null) {
+      room.emptySince = now;
+    }
 
     this.options.onUserFinalized?.(roomId, userId);
   }
@@ -270,7 +314,7 @@ export class RoomStore {
   isOffline(roomId: string, userId: string): boolean {
     const user = this.rooms.get(roomId)?.users.get(userId);
 
-    return Boolean(user && user.socketId === null);
+    return Boolean(user && !user.synthetic && user.socketId === null);
   }
 
   /**
@@ -337,8 +381,12 @@ export class RoomStore {
 
     room.users.delete(userId);
 
-    // Start the clock on an empty room so the sweeper can reclaim it.
-    if (room.users.size === 0) room.emptySince = Date.now();
+    // Start the clock on an empty room so the sweeper can reclaim it. Only
+    // people count, and a clock already running is not restarted: the AI
+    // teammate leaving an abandoned room must not extend its life.
+    if (humanCount(room) === 0 && room.emptySince === null) {
+      room.emptySince = Date.now();
+    }
 
     return true;
   }

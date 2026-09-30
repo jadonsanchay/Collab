@@ -21,6 +21,17 @@ const envSchema = z.object({
   ROOM_GRACE_MS: z.coerce.number().int().nonnegative().default(30 * 60_000),
   /** How often expired users and empty rooms are looked for. */
   SWEEP_INTERVAL_MS: z.coerce.number().int().positive().default(60_000),
+  /**
+   * The AI teammate. Off by default: with it off no AI code path runs and no
+   * AI UI renders. On, it needs either a key or `AI_FAKE` to have an agent.
+   */
+  AI_ENABLED: z.stringbool().default(false),
+  /** Deterministic agent for tests and keyless development. No network. */
+  AI_FAKE: z.stringbool().default(false),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  AI_MODEL: z.string().min(1).default('claude-opus-5-5'),
+  /** The history panel. A closed panel by default; this hides it entirely. */
+  REWIND_ENABLED: z.stringbool().default(true),
 });
 
 export type Config = z.infer<typeof envSchema>;

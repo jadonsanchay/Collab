@@ -5,9 +5,11 @@ import { Server } from 'socket.io';
 
 import type {
   ClientToServerEvents,
+  Features,
   ServerToClientEvents,
 } from '@/common/types/global';
 
+import { createAiService, type AiServiceOptions } from './ai';
 import { loadConfig, type Config } from './config';
 import { RoomStore } from './rooms/RoomStore';
 import { registerSocketHandlers } from './socket/handlers';
@@ -31,10 +33,13 @@ export type NextRequestHandler = (
 export const createAppServer = ({
   nextHandler,
   config = loadConfig(),
+  aiOptions = {},
 }: {
   nextHandler: NextRequestHandler;
   /** Overridable so tests can use grace windows measured in milliseconds. */
   config?: Config;
+  /** Overridable so tests can inject an agent and shrink limits and timings. */
+  aiOptions?: AiServiceOptions;
 }) => {
   const app = express();
   const server = createServer(app);
@@ -68,10 +73,19 @@ export const createAppServer = ({
     },
   });
 
+  // Null unless AI_ENABLED and an agent is available. With it null, no code
+  // under server/ai runs and the client is told the feature does not exist.
+  const ai = createAiService({ io, rooms, config, options: aiOptions });
+
+  const features: Features = {
+    ai: ai !== null,
+    rewind: config.REWIND_ENABLED,
+  };
+
   // Order matters: identity runs as middleware, so every handler can rely on
   // socket.data.userId being present and valid.
   registerIdentity(io);
-  registerSocketHandlers(io, rooms);
+  registerSocketHandlers(io, rooms, { ai, features });
 
   app.get('/hello', async (_, res) => {
     res.send('Hello World');
@@ -80,5 +94,5 @@ export const createAppServer = ({
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));
 
-  return { app, server, io, rooms, config };
+  return { app, server, io, rooms, config, ai, features };
 };
