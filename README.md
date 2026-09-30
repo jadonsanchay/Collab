@@ -22,6 +22,7 @@ For deeper implementation notes (module layout, conventions, gotchas), see [CLAU
 - **Rewind**: scrub the board's history, filter by author, play it back, and export a WebM timelapse
 - **Boards that last** (with storage on): a dashboard of your boards with templates, thumbnails, rename, duplicate, star and delete; server-rendered snapshots for fast loads
 - **Accounts and roles** (with storage on): sign in with Google or GitHub, guests keep working and are merged on sign-in; owner, editor, commenter and viewer roles enforced server-side; invitation links with a role and an expiry
+- **Objects boards** (beta): an infinite board of selectable objects — pen strokes, shapes, text, sticky notes, connectors, frames — synced through a Yjs document, with move/resize/rotate, snapping, in-place text editing two people can share, per-user undo, SVG export, Sketch drawing editable objects, Rewind over the document history, and one-click conversion of an existing drawing board. See [docs/object-model.md](docs/object-model.md)
 
 ## Architecture
 
@@ -37,6 +38,8 @@ Collab does **not** use Next.js's own dev/prod server. `server/index.ts` is a cu
 │                              │  WS    │      └─ in-memory Room store │
 └─────────────────────────────┘        └──────────────────────────────┘
 ```
+
+Objects boards add a second WebSocket on the same port: `/yjs/<boardId>` speaks the y-websocket protocol to a Yjs document the server keeps in memory and, with storage on, in Postgres. One rule keeps the two apart: Yjs carries durable objects, Socket.IO carries everything ephemeral (cursors, presence, chat, AI status) and the drawing boards' moves.
 
 Live room state is held in server memory (a `Map<roomId, ServerRoom>`) and, when storage is configured, recorded in Postgres so boards survive restarts and deploys. The default is memory only; `STORAGE=pglite` keeps boards in an embedded Postgres with no infrastructure, and `DATABASE_URL` uses a hosted Postgres. See [docs/operations.md](docs/operations.md).
 
@@ -63,6 +66,8 @@ The client reconstructs the board by merging `movesWithoutUser + myMoves + every
 8. **Leave**: on explicit `leave_room`, or once the grace window expires, the server folds that user's moves into `drawed` (so the drawing persists), removes them, and broadcasts `user_disconnected(userId)`. An empty room is swept after `ROOM_GRACE_MS`.
 
 9. **AI** (when `AI_ENABLED`): `ai_request` → `ai_status` updates to the room while Sketch, a synthetic member, moves its cursor and emits ordinary `user_draw` moves; `ai_undo` → `moves_removed(ids)` on every client.
+
+10. **Objects boards**: created with `create_room(username, { engine: 'vector' })` or from the dashboard. The room lifecycle above still applies; the drawing itself is a Yjs document on `/yjs/<roomId>`, and the server tells every window about an engine change with `board_engine`.
 
 The full typed event contract lives in `common/types/global.d.ts` (`ClientToServerEvents` / `ServerToClientEvents`) and is shared by both client and server. Once per connection the server sends `features`, which tells the client which optional features (AI, Rewind) exist here.
 
@@ -92,6 +97,7 @@ Node 22 is expected (see `.nvmrc`).
 | `ANTHROPIC_API_KEY` | —        | Enables the Anthropic agent (`AI_MODEL`, default `claude-opus-5-5`)                                    |
 | `OPENAI_API_KEY`    | —        | Enables the OpenAI agent (`OPENAI_MODEL`, default `gpt-5.5`)                                           |
 | `REWIND_ENABLED`    | `true`   | Shows the Rewind panel                                                                                 |
+| `DEFAULT_ENGINE`    | `raster` | `raster` or `vector`: the engine a board gets when its creator does not choose one                     |
 | `STORAGE`           | derived  | `memory`, `pglite` or `postgres`. Unset: `postgres` if `DATABASE_URL` is set, else `pglite` if `PGLITE_DIR` is set, else memory |
 | `DATABASE_URL`      | —        | Hosted Postgres                                                                                        |
 | `PGLITE_DIR`        | `.data/pglite` | Embedded Postgres directory for `STORAGE=pglite`                                                 |
