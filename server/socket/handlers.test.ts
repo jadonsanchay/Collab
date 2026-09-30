@@ -185,7 +185,7 @@ describe('socket handlers', () => {
     const joined = waitFor(bob, 'joined');
     bob.emit('join_room', roomId, 'Bob');
 
-    await expect(joined).resolves.toEqual([roomId]);
+    await expect(joined).resolves.toEqual([roomId, false, { role: 'editor' }]);
 
     const newUser = waitFor(alice, 'new_user');
     bob.emit('joined_room');
@@ -202,7 +202,7 @@ describe('socket handlers', () => {
 
       // The id comes back so the client's modal can name the room it failed to
       // join, rather than quoting an empty string.
-      await expect(joined).resolves.toEqual(['aaaaaaaa', true]);
+      await expect(joined).resolves.toEqual(['aaaaaaaa', true, { reason: 'not_found' }]);
     } finally {
       stranger.disconnect();
     }
@@ -229,7 +229,7 @@ describe('socket handlers', () => {
 
         const joined = waitFor(joiner, 'joined');
         joiner.emit('join_room', fullRoomId, `User ${i}`);
-        await expect(joined).resolves.toEqual([fullRoomId]);
+        await expect(joined).resolves.toEqual([fullRoomId, false, { role: 'editor' }]);
       }
 
       expect(rooms.get(fullRoomId)?.users.size).toBe(MAX_ROOM_USERS);
@@ -240,7 +240,7 @@ describe('socket handlers', () => {
       const rejected = waitFor(tooMany, 'joined');
       tooMany.emit('join_room', fullRoomId, 'One too many');
 
-      await expect(rejected).resolves.toEqual([fullRoomId, true]);
+      await expect(rejected).resolves.toEqual([fullRoomId, true, { reason: 'full' }]);
     } finally {
       clients.forEach((client) => client.disconnect());
     }

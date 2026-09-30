@@ -59,6 +59,13 @@ export const strokeEndSchema = z.object({
   strokeId: strokeIdSchema,
 });
 
+export const MAX_TITLE_LENGTH = 80;
+
+export const renameRoomSchema = z
+  .string()
+  .transform((value) => value.replace(/[\p{Cc}\p{Cf}]/gu, '').trim())
+  .pipe(z.string().min(1).max(MAX_TITLE_LENGTH));
+
 export const cursorSchema = z.object({
   x: z.number(),
   y: z.number(),

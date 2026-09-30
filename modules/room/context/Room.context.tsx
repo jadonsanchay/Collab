@@ -204,6 +204,20 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       toast.warning('You are sending messages too quickly.');
     });
 
+    socket.on('room_renamed', (title) => {
+      setRoom((prev) => ({ ...prev, title }));
+    });
+
+    socket.on('denied', (action, role) => {
+      const verbs: Record<string, string> = {
+        send_msg: 'chat here',
+        rename_room: 'rename this board',
+      };
+      const what = verbs[action] ?? 'edit this board';
+
+      toast.warning(`Your role here is "${role}", so you cannot ${what}.`);
+    });
+
     return () => {
       socket.off('room');
       socket.off('room_delta');
@@ -212,6 +226,8 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       socket.off('user_online');
       socket.off('user_disconnected');
       socket.off('rate_limited');
+      socket.off('room_renamed');
+      socket.off('denied');
     };
   }, [
     handleAddUser,

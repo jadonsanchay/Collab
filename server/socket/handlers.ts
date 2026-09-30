@@ -1,6 +1,7 @@
 import type { Server } from 'socket.io';
 import { v4 } from 'uuid';
 
+import { canChat, canDraw, canManage, canView } from '@/common/constants/roles';
 import { aiRequestSchema, aiUndoSchema } from '@/common/schemas/ai';
 import {
   checkRoomSchema,
@@ -9,6 +10,7 @@ import {
   drawSchema,
   joinRoomSchema,
   rejoinRoomSchema,
+  renameRoomSchema,
   sendMsgSchema,
   strokeEndSchema,
   strokePointsSchema,
@@ -23,6 +25,7 @@ import type {
 } from '@/common/types/global';
 
 import type { AiService } from '../ai';
+import type { RoleResolver } from '../auth/roles';
 import type { BoardStore } from '../boards/BoardStore';
 import { logger } from '../logger';
 import { toPublicUsers } from '../rooms/types';
@@ -43,6 +46,11 @@ export type HandlerDeps = {
   storage: ObjectStorage | null;
   /** Folds a guest's record into the account it signed in with. */
   mergeGuest?: (guestId: string, accountId: string) => Promise<void>;
+  /**
+   * Who may do what. Undefined means the memory rule: the creator owns the
+   * board, everyone else who finds it may draw.
+   */
+  roles?: RoleResolver;
 };
 
 const DEFAULT_DEPS: HandlerDeps = {
@@ -175,6 +183,37 @@ export const registerSocketHandlers = (
       socket.leave(roomId);
     };
 
+    /** The caller's role on a room. Without a resolver, the memory rule. */
+    const roleIn = async (roomId: string) => {
+      if (deps.roles) return deps.roles.roleFor(roomId, userId);
+
+      const room = rooms.get(roomId);
+
+      if (!room) return 'none' as const;
+
+      return room.ownerId === userId ? ('owner' as const) : ('editor' as const);
+    };
+
+    /**
+     * Checks a permission and tells the caller when it is missing. The
+     * refusal is explicit rather than silent because the person acted on
+     * purpose, and a board that ignores clicks looks broken.
+     */
+    const allowed = async (
+      roomId: string,
+      action: string,
+      check: (role: Awaited<ReturnType<typeof roleIn>>) => boolean,
+    ) => {
+      const role = await roleIn(roomId);
+
+      if (check(role)) return true;
+
+      logger.debug({ userId, roomId, action, role }, 'denied by role');
+      socket.emit('denied', action, role);
+
+      return false;
+    };
+
     socket.on(
       'create_room',
       safeHandler('create_room', async (username) => {
@@ -236,7 +275,20 @@ export const registerSocketHandlers = (
           return;
         }
 
-        await rooms.ensureLoaded(parsed.data.roomId);
+        const exists = await rooms.ensureLoaded(parsed.data.roomId);
+
+        if (!exists) {
+          io.to(socket.id).emit('joined', parsed.data.roomId, true, { reason: 'not_found' });
+          return;
+        }
+
+        const role = await roleIn(parsed.data.roomId);
+
+        if (!canView(role)) {
+          logger.info({ userId, roomId: parsed.data.roomId }, 'join refused: no access');
+          io.to(socket.id).emit('joined', parsed.data.roomId, true, { reason: 'forbidden' });
+          return;
+        }
 
         if (
           rooms.join(
@@ -248,9 +300,9 @@ export const registerSocketHandlers = (
         ) {
           socket.join(parsed.data.roomId);
 
-          io.to(socket.id).emit('joined', parsed.data.roomId);
+          io.to(socket.id).emit('joined', parsed.data.roomId, false, { role });
         } else {
-          io.to(socket.id).emit('joined', parsed.data.roomId, true);
+          io.to(socket.id).emit('joined', parsed.data.roomId, true, { reason: 'full' });
         }
       }),
     );
@@ -302,6 +354,12 @@ export const registerSocketHandlers = (
           return;
         }
 
+        // Access may have been revoked while the socket was away.
+        if (!canView(await roleIn(parsed.data.roomId))) {
+          io.to(socket.id).emit('joined', parsed.data.roomId, true, { reason: 'forbidden' });
+          return;
+        }
+
         rooms.join(parsed.data.roomId, userId, existing.name, socket.id);
         socket.join(parsed.data.roomId);
 
@@ -347,6 +405,8 @@ export const registerSocketHandlers = (
           dropped('draw', parsed.error);
           return;
         }
+
+        if (!(await allowed(roomId, 'draw', canDraw))) return;
 
         if (deps.storage && parsed.data.options.shape === 'image') {
           await offloadInlineImage(deps.storage, roomId, parsed.data);
@@ -438,9 +498,11 @@ export const registerSocketHandlers = (
 
     socket.on(
       'undo',
-      safeHandler('undo', () => {
+      safeHandler('undo', async () => {
         const roomId = getRoomId();
         if (!roomId) return;
+
+        if (!(await allowed(roomId, 'undo', canDraw))) return;
 
         if (!rooms.undoMove(roomId, userId)) return;
 
@@ -527,6 +589,8 @@ export const registerSocketHandlers = (
           return;
         }
 
+        if (!(await allowed(roomId, 'send_msg', canChat))) return;
+
         io.to(roomId).emit('new_msg', userId, parsed.data);
 
         const author = rooms.get(roomId)?.users.get(userId)?.name ?? 'Someone';
@@ -570,7 +634,30 @@ export const registerSocketHandlers = (
           return;
         }
 
+        if (!(await allowed(roomId, 'ai_request', canDraw))) return;
+
         await deps.ai.request({ roomId, userId }, parsed.data);
+      }),
+    );
+
+    socket.on(
+      'rename_room',
+      safeHandler('rename_room', async (title) => {
+        const roomId = getRoomId();
+        if (!roomId) return;
+
+        const parsed = renameRoomSchema.safeParse(title);
+
+        if (!parsed.success) {
+          dropped('rename_room', parsed.error);
+          return;
+        }
+
+        if (!(await allowed(roomId, 'rename_room', canManage))) return;
+
+        if (!rooms.rename(roomId, parsed.data)) return;
+
+        io.to(roomId).emit('room_renamed', rooms.get(roomId)?.title ?? parsed.data);
       }),
     );
 

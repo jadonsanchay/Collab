@@ -1,3 +1,4 @@
+import type { Role } from '../constants/roles';
 import type { AiKind, AiRequest, AiStatus } from '../schemas/ai';
 import type { CtxOptions, Move, Point } from '../schemas/move';
 
@@ -19,6 +20,16 @@ export type {
 } from '../schemas/move';
 
 export type { AiKind, AiRequest, AiStatus, BoardRect } from '../schemas/ai';
+export type { GrantableRole, Role } from '../constants/roles';
+
+/** Why a join was refused, when the reason is worth telling the user. */
+export type JoinRefusal = 'not_found' | 'full' | 'forbidden';
+
+/** Extra facts about a successful join: what the caller may do here. */
+export interface JoinMeta {
+  role?: Role;
+  reason?: JoinRefusal;
+}
 
 /**
  * Which optional features this server has switched on. Sent once per
@@ -94,6 +105,8 @@ export type Room = {
 export interface ClientRoom {
   id: string;
   title?: string;
+  /** What this client may do here, as the server said on join. */
+  myRole?: Role;
   usersMoves: Map<string, Move[]>;
   movesWithoutUser: Move[];
   myMoves: Move[];
@@ -107,7 +120,8 @@ export interface ClientRoom {
  */
 export interface ServerToClientEvents {
   room_exists: (exists: boolean) => void;
-  joined: (roomId: string, failed?: boolean) => void;
+  /** `meta` is additive: older clients read only the first two arguments. */
+  joined: (roomId: string, failed?: boolean, meta?: JoinMeta) => void;
   room: (room: Room, usersMovesToParse: string, usersToParse: string) => void;
   created: (roomId: string) => void;
   your_move: (move: Move) => void;
@@ -170,6 +184,10 @@ export interface ServerToClientEvents {
   /** Sent once on connect, after `features`. See `Identity`. */
   identity: (identity: Identity) => void;
   ai_status: (update: AiStatusUpdate) => void;
+  /** The caller's role does not allow what they just tried. */
+  denied: (action: string, role: Role) => void;
+  /** The board was renamed by its owner. */
+  room_renamed: (title: string) => void;
 }
 
 export interface ClientToServerEvents {
@@ -200,4 +218,6 @@ export interface ClientToServerEvents {
   ai_request: (request: AiRequest) => void;
   /** Removes everything one request drew. Only the requester may send it. */
   ai_undo: (requestId: string) => void;
+  /** Owner only. */
+  rename_room: (title: string) => void;
 }

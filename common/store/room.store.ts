@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import type { Role } from '@/common/constants/roles';
 import { ClientRoom, Move } from '@/common/types/global';
 
 export const DEFAULT_ROOM: ClientRoom = {
@@ -62,12 +63,19 @@ export const useSetRoom = () => useRoomStore((state) => state.setRoom);
 export const useSetRoomId = () => {
   const setRoom = useSetRoom();
 
-  const handleSetRoomId = (id: string) => {
-    setRoom({ ...DEFAULT_ROOM, id });
+  const handleSetRoomId = (id: string, role?: Role) => {
+    setRoom({ ...DEFAULT_ROOM, id, ...(role ? { myRole: role } : {}) });
   };
 
   return handleSetRoomId;
 };
+
+/** This client's role on the current board; editor until the server says otherwise. */
+export const useMyRole = (): Role => useRoomStore((state) => state.room.myRole ?? 'editor');
+
+export const myRole = (): Role => useRoomStore.getState().room.myRole ?? 'editor';
+
+export const useRoomTitle = () => useRoomStore((state) => state.room.title || 'Untitled board');
 
 export const useSetUsers = () => {
   const setRoom = useSetRoom();

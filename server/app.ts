@@ -16,10 +16,13 @@ import { createAiService, type AiServiceOptions } from './ai';
 import { buildAuthConfig } from './auth/authConfig';
 import { DEV_GUEST_SECRET } from './auth/guestCookie';
 import { mergeGuest } from './auth/mergeGuest';
+import { DbRoleResolver } from './auth/dbRoles';
+import { MemoryRoleResolver } from './auth/roles';
 import { registerAuthRoutes } from './auth/routes';
 import { resolveSession } from './auth/session';
 import { BoardStore } from './boards/BoardStore';
 import type { Persistence } from './boards/persistence';
+import { registerBoardRoutes } from './boards/routes';
 import { loadConfig, type Config } from './config';
 import type { Database } from './db/client';
 import { users } from './db/schema';
@@ -160,10 +163,15 @@ export const createAppServer = ({
         }
       : undefined,
   });
+  // With a database, memberships and visibility decide what a user may do;
+  // without one, the memory rule from before Phase 3.
+  const roles = database ? new DbRoleResolver(database.db, boards) : new MemoryRoleResolver(boards);
+
   registerSocketHandlers(io, boards, {
     ai,
     features,
     storage,
+    roles,
     mergeGuest: database ? (guestId, accountId) => mergeGuest(database.db, guestId, accountId) : undefined,
   });
 
@@ -172,7 +180,11 @@ export const createAppServer = ({
   });
 
   registerUploadRoutes(app, { storage, config });
-  registerAuthRoutes(app, { config, authConfig, db: database?.db ?? null, guestSecret });
+
+  const authDeps = { config, authConfig, db: database?.db ?? null, guestSecret };
+  registerAuthRoutes(app, authDeps);
+
+  if (database) registerBoardRoutes(app, { db: database.db, boards, roles, auth: authDeps });
 
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));
@@ -190,5 +202,6 @@ export const createAppServer = ({
     storage,
     snapshots,
     authConfig,
+    roles,
   };
 };

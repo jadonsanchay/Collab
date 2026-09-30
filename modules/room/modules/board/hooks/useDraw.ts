@@ -6,9 +6,10 @@ import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
 import { toBoard } from '@/common/lib/coords';
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { socket } from '@/common/lib/socket';
+import { canDraw } from '@/common/constants/roles';
 import { useOptionsValue, useSetSelection } from '@/common/store/options.store';
 import { usePresenceStore } from '@/common/store/presence.store';
-import { useMyMoves } from '@/common/store/room.store';
+import { myRole, useMyMoves } from '@/common/store/room.store';
 import { isViewingHistory, useSetSavedMoves } from '@/common/store/history.store';
 import { useViewportStore } from '@/common/store/viewport.store';
 import {
@@ -53,6 +54,9 @@ export const useDraw = (blocked: boolean) => {
 
     // Rewind is showing the past; the board is read-only until "Back to live".
     if (isViewingHistory()) return;
+
+    // Viewers and commenters look; the server would refuse the move anyway.
+    if (!canDraw(myRole())) return;
 
     if (usePresenceStore.getState().following)
       usePresenceStore.getState().setFollowing(null);

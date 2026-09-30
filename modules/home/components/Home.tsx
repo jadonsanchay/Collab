@@ -33,12 +33,16 @@ const Home = () => {
       router.push(roomIdFromServer);
     });
 
-    const handleJoinedRoom = (roomIdFromServer: string, failed?: boolean) => {
+    const handleJoinedRoom = (
+      roomIdFromServer: string,
+      failed?: boolean,
+      meta?: { role?: import('@/common/constants/roles').Role; reason?: string },
+    ) => {
       if (!failed) {
-        setAtomRoomId(roomIdFromServer);
+        setAtomRoomId(roomIdFromServer, meta?.role);
         router.push(roomIdFromServer);
       } else {
-        openModal(<NotFoundModal id={roomId} />);
+        openModal(<NotFoundModal id={roomId} reason={meta?.reason} />);
       }
     };
 

@@ -34,11 +34,15 @@ const NameInput = () => {
   }, [roomId, router]);
 
   useEffect(() => {
-    const handleJoined = (roomIdFromServer: string, failed?: boolean) => {
+    const handleJoined = (
+      roomIdFromServer: string,
+      failed?: boolean,
+      meta?: { role?: import('@/common/constants/roles').Role; reason?: string },
+    ) => {
       if (failed) {
         router.push('/');
-        openModal(<NotFoundModal id={roomIdFromServer} />);
-      } else setRoomId(roomIdFromServer);
+        openModal(<NotFoundModal id={roomIdFromServer} reason={meta?.reason} />);
+      } else setRoomId(roomIdFromServer, meta?.role);
     };
 
     socket.on('joined', handleJoined);
