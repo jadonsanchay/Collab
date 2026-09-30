@@ -1,4 +1,4 @@
-import { drawMove, preloadImages } from '@/common/render/drawMove';
+import { drawMove, type ImageCache, preloadImages } from '@/common/render/drawMove';
 import { Move } from '@/common/types/global';
 
 const CHECKPOINT_OFFSET = 30;
@@ -9,11 +9,7 @@ type Snapshot = (canvas: HTMLCanvasElement) => Promise<ImageBitmap>;
 
 const defaultSnapshot: Snapshot = (canvas) => createImageBitmap(canvas);
 
-type Draw = (
-  ctx: CanvasRenderingContext2D,
-  move: Move,
-  cache: Map<string, HTMLImageElement>,
-) => void;
+type Draw = (ctx: CanvasRenderingContext2D, move: Move, cache: ImageCache) => void;
 
 /**
  * Owns the committed canvas: an image cache so replays never re-decode a
@@ -22,7 +18,7 @@ type Draw = (
  * several state changes in one frame produce a single render.
  */
 export class CommittedRenderer {
-  private imageCache = new Map<string, HTMLImageElement>();
+  private imageCache: ImageCache = new Map();
 
   private checkpoint: Checkpoint | null = null;
 

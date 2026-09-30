@@ -82,7 +82,24 @@ export const moveSchema = z.object({
     width: coordinate,
     height: coordinate,
   }),
-  img: z.object({ base64: z.string().max(MAX_IMAGE_BASE64_LENGTH) }),
+  /**
+   * Either an inline data URL (legacy, still accepted) or a URL the client
+   * uploaded to first. Relative `/uploads/` paths are this server's own
+   * storage; absolute URLs are object storage.
+   */
+  img: z.object({
+    base64: z.string().max(MAX_IMAGE_BASE64_LENGTH).optional(),
+    url: z
+      .string()
+      .max(2048)
+      .refine(
+        (value) => value.startsWith('/uploads/') || /^https?:\/\//u.test(value),
+        'must be an /uploads/ path or an http(s) URL',
+      )
+      .optional(),
+    width: z.number().positive().optional(),
+    height: z.number().positive().optional(),
+  }),
   path: z.array(pointSchema).max(MAX_PATH_POINTS),
   options: ctxOptionsSchema,
   /** Present only when `options.shape` is `text`. Optional so older payloads still parse. */

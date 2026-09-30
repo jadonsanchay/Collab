@@ -3,7 +3,7 @@ import { useCallback, useState } from 'react';
 import { toast } from 'sonner';
 
 import { CANVAS_SIZE } from '@/common/constants/canvasSize';
-import { drawMove, preloadImages } from '@/common/render/drawMove';
+import { drawMove, type ImageCache, preloadImages } from '@/common/render/drawMove';
 import { sortMoves, visibleMoves } from '@/common/render/historyView';
 import { useHistoryStore } from '@/common/store/history.store';
 import { useRoomStore } from '@/common/store/room.store';
@@ -78,7 +78,7 @@ export const useTimelapseExport = () => {
       inkCtx.lineCap = 'round';
       inkCtx.lineJoin = 'round';
 
-      const cache = new Map<string, HTMLImageElement>();
+      const cache: ImageCache = new Map();
       await preloadImages(moves, cache);
 
       const compose = () => {

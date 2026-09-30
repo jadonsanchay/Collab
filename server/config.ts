@@ -56,6 +56,28 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1).optional(),
   /** Names this node in the `features` payload. Defaults to the hostname. */
   NODE_ID: z.string().min(1).optional(),
+  /**
+   * Object storage for images, snapshots and thumbnails. The local
+   * filesystem by default, served by this server; S3-compatible (R2, MinIO)
+   * when `S3_BUCKET` is set.
+   */
+  UPLOADS_DIR: z.string().min(1).default('.data/uploads'),
+  /** This server's origin, used to build absolute upload URLs. Optional. */
+  PUBLIC_URL: z.string().url().optional(),
+  S3_BUCKET: z.string().min(1).optional(),
+  S3_ENDPOINT: z.string().url().optional(),
+  S3_REGION: z.string().min(1).default('auto'),
+  S3_ACCESS_KEY_ID: z.string().min(1).optional(),
+  S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
+  /** Public base URL of the bucket, e.g. a custom R2 domain. */
+  S3_PUBLIC_URL: z.string().url().optional(),
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+  /** A snapshot is rendered once this many moves have landed since the last one. */
+  SNAPSHOT_EVERY: z.coerce.number().int().positive().default(500),
+  /** The thumbnail re-renders this long after the last activity. */
+  THUMBNAIL_DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(60_000),
+  /** Signs presigned local upload URLs and guest cookies. Required in production. */
+  AUTH_SECRET: z.string().min(16).optional(),
 });
 
 export type Config = z.infer<typeof envSchema>;

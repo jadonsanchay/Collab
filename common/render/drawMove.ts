@@ -3,15 +3,54 @@ import { Move } from '@/common/types/global';
 
 import { TEXT_LINE_HEIGHT, textFont } from './text';
 
+/** Anything `drawImage` accepts: a browser `<img>`, or a Node canvas image. */
+export type LoadedImage = CanvasImageSource;
+
+export type ImageCache = Map<string, LoadedImage>;
+
+/**
+ * How an image move's pixels are fetched. The browser loader below creates
+ * an `<img>`; the server passes one built on `@napi-rs/canvas` that reads
+ * files and URLs. Injecting it is what lets the same `drawMove` render a
+ * board in Node for snapshots and thumbnails.
+ */
+export type ImageLoader = (source: string) => Promise<LoadedImage>;
+
+/** The URL or data URL an image move draws from, if it has one. */
+export const imageSource = (move: Move): string | null =>
+  move.img.url || move.img.base64 || null;
+
+export const browserImageLoader: ImageLoader = (source) =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+
+    // Object storage is another origin; without this the canvas would be
+    // tainted and Download would stop working.
+    if (/^https?:\/\//u.test(source)) img.crossOrigin = 'anonymous';
+
+    img.addEventListener('load', () => resolve(img));
+    img.addEventListener('error', () => reject(new Error(`failed to load ${source.slice(0, 80)}`)));
+    img.src = source;
+  });
+
+const drawImageMove = (ctx: CanvasRenderingContext2D, move: Move, image: LoadedImage) => {
+  const [x, y] = move.path[0];
+  const { width, height } = move.img;
+
+  if (width && height) ctx.drawImage(image, x, y, width, height);
+  else ctx.drawImage(image, x, y);
+};
+
 /**
  * Pure so it can run against any 2D context — the committed canvas, a live
- * preview layer, or (Phase 3) the server. Caches decoded images across calls
- * so a replay never re-decodes the same base64 payload twice.
+ * preview layer, or a Node canvas on the server. Caches decoded images across
+ * calls so a replay never re-decodes the same payload twice.
  */
 export const drawMove = (
   ctx: CanvasRenderingContext2D,
   move: Move,
-  imageCache: Map<string, HTMLImageElement>,
+  imageCache: ImageCache,
+  loader: ImageLoader = browserImageLoader,
 ) => {
   const { path, options } = move;
 
@@ -27,15 +66,21 @@ export const drawMove = (
     const cached = imageCache.get(move.id);
 
     if (cached) {
-      ctx.drawImage(cached, path[0][0], path[0][1]);
-    } else {
-      const img = new Image();
-      img.src = move.img.base64;
-      img.addEventListener('load', () => {
-        imageCache.set(move.id, img);
-        ctx.drawImage(img, path[0][0], path[0][1]);
-      });
+      drawImageMove(ctx, move, cached);
+      return;
     }
+
+    const source = imageSource(move);
+    if (!source) return;
+
+    // Not preloaded: draw when it arrives. Replays preload first, so this is
+    // the path for a single freshly placed image.
+    loader(source)
+      .then((image) => {
+        imageCache.set(move.id, image);
+        drawImageMove(ctx, move, image);
+      })
+      .catch(() => {});
 
     return;
   }
@@ -95,28 +140,27 @@ export const drawMove = (
 };
 
 /**
- * Preloads every image move's `<img>` so a replay (checkpoint or full) can
- * draw them synchronously instead of racing a `load` event per move.
+ * Decodes every image move ahead of a replay (checkpoint or full) so the
+ * replay draws them synchronously instead of racing a load event per move.
+ * A source that fails to load is skipped: one broken image must not stop
+ * the rest of the board from rendering.
  */
 export const preloadImages = async (
   moves: Move[],
-  imageCache: Map<string, HTMLImageElement>,
+  imageCache: ImageCache,
+  loader: ImageLoader = browserImageLoader,
 ) => {
   const imageMoves = moves.filter(
-    (move) => move.options.shape === 'image' && !imageCache.has(move.id),
+    (move) => move.options.shape === 'image' && !imageCache.has(move.id) && imageSource(move),
   );
 
   await Promise.all(
-    imageMoves.map(
-      (move) =>
-        new Promise<void>((resolve) => {
-          const img = new Image();
-          img.src = move.img.base64;
-          img.addEventListener('load', () => {
-            imageCache.set(move.id, img);
-            resolve();
-          });
-        }),
-    ),
+    imageMoves.map(async (move) => {
+      try {
+        imageCache.set(move.id, await loader(imageSource(move) as string));
+      } catch {
+        // Skipped on purpose; see above.
+      }
+    }),
   );
 };
