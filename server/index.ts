@@ -1,6 +1,7 @@
 import next from 'next';
 
 import { createAppServer } from './app';
+import { createPersistence } from './boards/createPersistence';
 import { loadConfig } from './config';
 import { logger } from './logger';
 
@@ -14,10 +15,43 @@ const dev = config.NODE_ENV !== 'production';
 const nextApp = next({ dev });
 const nextHandler = nextApp.getRequestHandler();
 
-nextApp.prepare().then(() => {
-  const { server } = createAppServer({ nextHandler, config });
+const start = async () => {
+  await nextApp.prepare();
+
+  // Connects and migrates before a single socket is accepted, so a bad
+  // database setting fails here rather than on the first join.
+  const persisted = await createPersistence(config);
+
+  const { server, boards } = createAppServer({
+    nextHandler,
+    config,
+    persistence: persisted?.persistence ?? null,
+  });
 
   server.listen(port, () => {
-    logger.info({ port, dev }, `Ready on http://localhost:${port}`);
+    logger.info(
+      { port, dev, storage: boards.storageKind },
+      `Ready on http://localhost:${port}`,
+    );
   });
+
+  // A deploy sends SIGTERM: write what is buffered before going away.
+  const shutdown = async (signal: string) => {
+    logger.info({ signal }, 'shutting down');
+    server.close();
+
+    try {
+      await boards.stop();
+    } finally {
+      process.exit(0);
+    }
+  };
+
+  process.once('SIGTERM', () => shutdown('SIGTERM'));
+  process.once('SIGINT', () => shutdown('SIGINT'));
+};
+
+start().catch((error) => {
+  logger.error({ err: error }, 'failed to start');
+  process.exit(1);
 });
