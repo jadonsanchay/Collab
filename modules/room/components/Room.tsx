@@ -7,6 +7,7 @@ import ConnectionBanner from './ConnectionBanner';
 import Board from '../modules/board';
 import Chat from '../modules/chat';
 import Toolbar from '../modules/toolbar';
+import AiSync from './AiSync';
 import CommandPalette from './CommandPalette';
 import NameInput from './NameInput';
 import ShortcutsSheet from './ShortcutsSheet';
@@ -22,6 +23,7 @@ const Room = () => {
       <RoomContextProvider>
         <ToolbarActionsProvider>
           <div className="relative size-full overflow-hidden">
+            <AiSync />
             <ConnectionBanner />
             <TopBar />
             <Toolbar />

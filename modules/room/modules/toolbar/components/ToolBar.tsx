@@ -14,6 +14,7 @@ import ImagePicker from './ImagePicker';
 import LineWidthPicker from './LineWidthPicker';
 import ModePicker from './ModePicker';
 import ShapeSelector from './ShapeSelector';
+import SketchPopover from './SketchPopover';
 
 const HandToolToggle = () => {
   const handTool = useViewportStore((state) => state.handTool);
@@ -52,6 +53,7 @@ const ToolButtons = () => {
       <LineWidthPicker />
       <ImagePicker onOpen={openImageInput} />
       <BackgroundPicker />
+      <SketchPopover />
     </>
   );
 };

@@ -8,12 +8,17 @@ import {
   CommandInput,
   CommandList,
 } from '@/common/components/ui/command';
+import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { isCommandPalette, isTypingTarget } from '@/common/lib/keyboard';
+import { useAiStore } from '@/common/store/ai.store';
 import { useSetBackground, useBackground } from '@/common/store/background.store';
 import { useSetOptions } from '@/common/store/options.store';
 import { useViewportSize } from '@/common/hooks/useViewportSize';
 import { useViewportStore } from '@/common/store/viewport.store';
 
+import { useRefs } from '../hooks/useRefs';
+import { currentViewportRect, requestSketch } from '../lib/ai';
+import { captureRegion } from '../lib/captureBoard';
 import { useToolbarActionsContext } from '../modules/toolbar/context/ToolbarActions.context';
 
 const CommandPalette = () => {
@@ -27,6 +32,16 @@ const CommandPalette = () => {
   const setBackground = useSetBackground();
   const { handleDownload, handleShare, handleExit, openImageInput } =
     useToolbarActionsContext();
+  const ai = useFeatureFlag('ai');
+  const { canvasRef, bgRef } = useRefs();
+
+  const summarizeWithSketch = () => {
+    const image = canvasRef.current
+      ? captureRegion(canvasRef.current, bgRef.current, currentViewportRect())
+      : null;
+
+    requestSketch('summarize', { image: image ?? undefined });
+  };
 
   useEffect(() => {
     const listener = (event: KeyboardEvent) => {
@@ -109,6 +124,17 @@ const CommandPalette = () => {
             Toggle grid
           </CommandItem>
         </CommandGroup>
+
+        {ai && (
+          <CommandGroup heading="Sketch">
+            <CommandItem onSelect={run(() => useAiStore.getState().setPromptOpen(true))}>
+              Ask Sketch to draw…
+            </CommandItem>
+            <CommandItem onSelect={run(summarizeWithSketch)}>
+              Summarize board with Sketch
+            </CommandItem>
+          </CommandGroup>
+        )}
 
         <CommandGroup heading="Room">
           <CommandItem onSelect={run(handleShare)}>Share</CommandItem>

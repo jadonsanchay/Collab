@@ -2,9 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 
 import { MousePointer2 } from 'lucide-react';
 
+import { isAiUser } from '@/common/constants/ai';
 import { getMyUserId } from '@/common/lib/identity';
 import { toScreen } from '@/common/lib/coords';
 import { socket } from '@/common/lib/socket';
+import { activityLabel, useSketchActivity } from '@/common/store/ai.store';
 import { usePresenceStore } from '@/common/store/presence.store';
 import { useRoom } from '@/common/store/room.store';
 import { useViewportStore } from '@/common/store/viewport.store';
@@ -28,6 +30,11 @@ const CursorLayer = () => {
 
   const [rendered, setRendered] = useState<Map<string, RenderedCursor>>(new Map());
   const [messages, setMessages] = useState<Map<string, string>>(new Map());
+  const activity = useSketchActivity();
+
+  // Read from the rAF loop below without restarting it on every change.
+  const activityRef = useRef(activity);
+  activityRef.current = activity;
 
   useEffect(() => {
     const handleNewMsg = (userId: string, msg: string) => {
@@ -66,7 +73,11 @@ const CursorLayer = () => {
       const next = new Map<string, RenderedCursor>();
 
       cursors.forEach((cursor, userId) => {
-        if (now - cursor.lastUpdate > IDLE_TIMEOUT_MS) return;
+        // Sketch's pen waits at the target while the model thinks; it should
+        // stay visible for as long as a request is in flight.
+        const busySketch = isAiUser(userId) && activityRef.current !== null;
+
+        if (!busySketch && now - cursor.lastUpdate > IDLE_TIMEOUT_MS) return;
 
         const prev = renderedRef.current.get(userId) ?? cursor;
 
@@ -110,7 +121,12 @@ const CursorLayer = () => {
                 {msg}
               </p>
             )}
-            <p className="ml-2">{user?.name || 'Anonymous'}</p>
+            <p className="ml-2">
+              {user?.name || 'Anonymous'}
+              {isAiUser(userId) && activity && (
+                <span className="ml-1 text-xs opacity-80">· {activityLabel(activity)}</span>
+              )}
+            </p>
           </div>
         );
       })}

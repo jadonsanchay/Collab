@@ -25,6 +25,9 @@ export default defineConfig({
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
     command: 'npm run dev',
+    // The deterministic AI agent: the Sketch suite exercises the whole
+    // pipeline without a key or a network call.
+    env: { ...process.env, AI_ENABLED: '1', AI_FAKE: '1' },
     // `/hello` answers as soon as Express is up, without waiting for Next to
     // compile a page.
     url: 'http://localhost:3000/hello',

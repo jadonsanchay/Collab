@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { v4 } from 'uuid';
 
 import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
+import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { isCopy, isDelete, isTypingTarget } from '@/common/lib/keyboard';
 import { socket } from '@/common/lib/socket';
 import { useOptionsValue } from '@/common/store/options.store';
@@ -13,6 +14,8 @@ import { Move } from '@/common/types/global';
 
 import { useMoveImage } from '../../../hooks/useMoveImage';
 import { useRefs } from '../../../hooks/useRefs';
+import { requestSketch } from '../../../lib/ai';
+import { captureRegion } from '../../../lib/captureBoard';
 import { useCtx, useLiveCtx } from './useCtx';
 
 let tempSelection = {
@@ -29,6 +32,7 @@ export const useSelection = () => {
   const { selection } = options;
   const { bgRef, selectionRefs } = useRefs();
   const { setMoveImage } = useMoveImage();
+  const ai = useFeatureFlag('ai');
 
   /**
    * Drawn on the live layer, not the committed canvas: a plain clear-and-
@@ -196,6 +200,24 @@ export const useSelection = () => {
     return move;
   }, [selection, dimension, options]);
 
+  /**
+   * Sends the selected pixels, background included, to Sketch to redraw
+   * beside the original. The selection is kept so the two can be compared.
+   */
+  const handleCleanup = useCallback(() => {
+    if (!selection || !ctx) return;
+
+    const image = captureRegion(ctx.canvas, bgRef.current, dimension);
+
+    if (!image) {
+      toast.warning('Nothing to clean up in that selection.');
+      return;
+    }
+
+    requestSketch('cleanup', { selection: dimension, image });
+    toast('Sketch is cleaning that up.');
+  }, [selection, ctx, bgRef, dimension]);
+
   const handleCopy = useCallback(async () => {
     const blob = await makeBlob(true);
 
@@ -278,22 +300,28 @@ export const useSelection = () => {
       const moveBtn = selectionRefs.current[0];
       const copyBtn = selectionRefs.current[1];
       const deleteBtn = selectionRefs.current[2];
+      // Present only when the server has AI switched on.
+      const cleanupBtn = ai ? selectionRefs.current[3] : undefined;
 
       moveBtn.addEventListener('click', handleSelectionMove);
       copyBtn.addEventListener('click', handleCopy);
       deleteBtn.addEventListener('click', createDeleteMove);
+      cleanupBtn?.addEventListener('click', handleCleanup);
 
       return () => {
         moveBtn?.removeEventListener('click', handleSelectionMove);
         copyBtn?.removeEventListener('click', handleCopy);
         deleteBtn?.removeEventListener('click', createDeleteMove);
+        cleanupBtn?.removeEventListener('click', handleCleanup);
       };
     }
 
     return () => {};
   }, [
+    ai,
     createDeleteMove,
     dimension,
+    handleCleanup,
     handleCopy,
     makeBlob,
     selection,
