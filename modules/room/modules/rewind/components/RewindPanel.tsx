@@ -5,6 +5,7 @@ import { Download, Pause, Play, Radio, X } from 'lucide-react';
 import HotkeyTooltip from '@/common/components/HotkeyTooltip';
 import { Slider } from '@/common/components/ui/slider';
 import { AI_USER_COLOR, AI_USER_NAME, isAiUser } from '@/common/constants/ai';
+import { isSystemUser } from '@/common/constants/system';
 import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { getMyUserId } from '@/common/lib/identity';
 import { isRewind, isTypingTarget } from '@/common/lib/keyboard';
@@ -78,6 +79,10 @@ const RewindPanel = () => {
       if (move.userId === me) {
         name = 'You';
         color = '#111827';
+      } else if (isSystemUser(move.userId)) {
+        // The compacted picture of everything before the last snapshot.
+        name = 'Earlier history';
+        color = '#6B7280';
       } else if (isAiUser(move.userId)) {
         name = AI_USER_NAME;
         color = AI_USER_COLOR;

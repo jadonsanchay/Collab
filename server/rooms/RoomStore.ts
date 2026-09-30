@@ -2,6 +2,8 @@ import { randomBytes } from 'crypto';
 import { v4 } from 'uuid';
 
 import { COLORS_ARRAY } from '@/common/constants/colors';
+import { DEFAULT_MOVE } from '@/common/constants/defaultMove';
+import { SNAPSHOT_USER_ID } from '@/common/constants/system';
 import type {
   ChatMessage,
   DrawPayload,
@@ -18,15 +20,40 @@ export const MAX_CHAT_HISTORY = 100;
 
 export const DEFAULT_TITLE = 'Untitled board';
 
+/** A server-rendered picture of everything up to `seq`. */
+export type RoomSnapshot = {
+  url: string;
+  seq: number;
+  width: number;
+  height: number;
+};
+
 /** What a persistence layer hands back to rebuild a room in memory. */
 export type HydratedRoom = {
   title: string;
   ownerId: string | null;
   seq: number;
-  /** Every surviving move, any order; all carry `userId`. */
+  /** Every surviving move after the snapshot (or all of them), any order; all carry `userId`. */
   moves: Move[];
   chat: ChatMessage[];
+  snapshot?: RoomSnapshot | null;
 };
+
+/**
+ * The compacted history as a move: an image at the origin with the
+ * snapshot's sequence number, so it sorts before everything drawn since
+ * and needs no special handling from any renderer.
+ */
+export const snapshotMove = (snapshot: RoomSnapshot): Move => ({
+  ...DEFAULT_MOVE,
+  id: `snapshot:${snapshot.seq}`,
+  clientId: `snapshot:${snapshot.seq}`,
+  seq: snapshot.seq,
+  userId: SNAPSHOT_USER_ID,
+  path: [[0, 0]],
+  img: { url: snapshot.url, width: snapshot.width, height: snapshot.height },
+  options: { ...DEFAULT_MOVE.options, shape: 'image', mode: 'draw' },
+});
 
 export type RoomStoreOptions = {
   /** How long a disconnected user keeps their place. */
@@ -187,6 +214,7 @@ export class RoomStore {
       usersMoves: new Map([[userId, []]]),
       drawed: [],
       seq: 0,
+      snapshotSeq: 0,
       clientIds: new Set(),
       emptySince: null,
     });
@@ -205,7 +233,8 @@ export class RoomStore {
     const existing = this.rooms.get(roomId);
     if (existing) return existing;
 
-    const drawed = [...data.moves].sort((a, b) => a.seq - b.seq);
+    const tail = [...data.moves].sort((a, b) => a.seq - b.seq);
+    const drawed = data.snapshot ? [snapshotMove(data.snapshot), ...tail] : tail;
     const highest = drawed.reduce((max, move) => Math.max(max, move.seq), 0);
 
     const room: ServerRoom = {
@@ -216,6 +245,7 @@ export class RoomStore {
       usersMoves: new Map(),
       drawed,
       seq: Math.max(data.seq, highest),
+      snapshotSeq: data.snapshot?.seq ?? 0,
       clientIds: new Set(drawed.map((move) => move.clientId)),
       emptySince: now,
     };

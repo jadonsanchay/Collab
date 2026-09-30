@@ -5,6 +5,7 @@ import { createPersistence } from './boards/createPersistence';
 import { loadConfig } from './config';
 import { logger } from './logger';
 import { createRedis } from './redis';
+import { createStorage } from './storage';
 
 // Parsed once, up front: a typo in a deploy variable should fail here rather
 // than become a NaN inside a timer an hour later.
@@ -21,13 +22,16 @@ const start = async () => {
 
   // Connects and migrates before a single socket is accepted, so a bad
   // database setting fails here rather than on the first join.
-  const persisted = await createPersistence(config);
+  const storage = createStorage(config);
+  const persisted = await createPersistence(config, storage);
   const redis = config.REDIS_URL ? await createRedis(config.REDIS_URL) : null;
 
-  const { server, boards } = createAppServer({
+  const { server, boards, snapshots } = createAppServer({
     nextHandler,
     config,
     persistence: persisted?.persistence ?? null,
+    database: persisted?.database ?? null,
+    storage,
     redis,
   });
 
@@ -44,6 +48,7 @@ const start = async () => {
     server.close();
 
     try {
+      snapshots?.stop();
       await boards.stop();
       await redis?.close();
     } finally {

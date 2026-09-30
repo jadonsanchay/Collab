@@ -20,12 +20,22 @@ import type { Persistence } from './persistence';
  * what `STORAGE=memory` promises. The room logic itself lives in
  * `RoomStore`; this class only decides what to remember.
  */
+export type BoardStoreOptions = {
+  /**
+   * Called after any change to a room's drawing. Feeds the snapshot and
+   * thumbnail jobs, which is why it is a plain callback rather than a
+   * dependency: the store does not need to know what rendering is.
+   */
+  onActivity?: (roomId: string) => void;
+};
+
 export class BoardStore {
   private loading = new Map<string, Promise<boolean>>();
 
   constructor(
     readonly rooms: RoomStore,
     private persistence: Persistence | null = null,
+    private options: BoardStoreOptions = {},
   ) {}
 
   get persistent(): boolean {
@@ -138,7 +148,10 @@ export class BoardStore {
   addMove(roomId: string, userId: string, payload: DrawPayload, meta?: MoveMeta): AddMoveResult {
     const result = this.rooms.addMove(roomId, userId, payload, meta);
 
-    if (result.status === 'stored') this.persistence?.appendMove(roomId, result.move);
+    if (result.status === 'stored') {
+      this.persistence?.appendMove(roomId, result.move);
+      this.options.onActivity?.(roomId);
+    }
 
     return result;
   }
@@ -149,7 +162,10 @@ export class BoardStore {
     const last = this.rooms.peekLastMove(roomId, userId);
     const ok = this.rooms.undoMove(roomId, userId);
 
-    if (ok && last) this.persistence?.removeMoves(roomId, [last.id], 'undo');
+    if (ok && last) {
+      this.persistence?.removeMoves(roomId, [last.id], 'undo');
+      this.options.onActivity?.(roomId);
+    }
 
     return ok;
   }
@@ -163,6 +179,7 @@ export class BoardStore {
         removed.map((move) => move.id),
         'remove',
       );
+      this.options.onActivity?.(roomId);
     }
 
     return removed;

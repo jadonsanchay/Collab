@@ -15,11 +15,15 @@ import { createAiService, type AiServiceOptions } from './ai';
 import { BoardStore } from './boards/BoardStore';
 import type { Persistence } from './boards/persistence';
 import { loadConfig, type Config } from './config';
+import type { Database } from './db/client';
+import { SnapshotService, type SnapshotOptions } from './jobs/snapshots';
 import type { RedisClients } from './redis';
 import { RoomStore } from './rooms/RoomStore';
 import { registerSocketHandlers } from './socket/handlers';
 import { registerIdentity, type SocketData } from './socket/identity';
 import { resetRateLimits, enableRedisRateLimits } from './socket/rateLimit';
+import { createStorage, type ObjectStorage } from './storage';
+import { registerUploadRoutes } from './storage/routes';
 
 /**
  * Shape of `nextApp.getRequestHandler()`. Declared structurally so tests can
@@ -41,6 +45,9 @@ export const createAppServer = ({
   config = loadConfig(),
   aiOptions = {},
   persistence = null,
+  database = null,
+  storage = createStorage(config),
+  snapshotOptions = {},
   redis = null,
 }: {
   nextHandler: NextRequestHandler;
@@ -50,6 +57,11 @@ export const createAppServer = ({
   aiOptions?: AiServiceOptions;
   /** The durability layer, or null for memory-only rooms. */
   persistence?: Persistence | null;
+  /** The database behind `persistence`, for jobs that write their own rows. */
+  database?: Database | null;
+  /** Where images, snapshots and thumbnails go. Local filesystem by default. */
+  storage?: ObjectStorage;
+  snapshotOptions?: Partial<SnapshotOptions>;
   /** Connected Redis clients, or null for a single node with in-memory limits. */
   redis?: RedisClients | null;
 }) => {
@@ -93,9 +105,18 @@ export const createAppServer = ({
     },
   });
 
+  // Snapshots and thumbnails need somewhere to record themselves, so they
+  // exist only alongside a database. Assigned after the store, which calls
+  // back into them on every change.
+  let snapshots: SnapshotService | null = null;
+
   // The in-memory store is the source of truth for live rooms; the board
   // store adds durability on top when a persistence layer is configured.
-  const boards = new BoardStore(rooms, persistence);
+  const boards = new BoardStore(rooms, persistence, {
+    onActivity: (roomId) => snapshots?.noteActivity(roomId),
+  });
+
+  if (database) snapshots = new SnapshotService(boards, database, storage, snapshotOptions);
 
   // Null unless AI_ENABLED and an agent is available. With it null, no code
   // under server/ai runs and the client is told the feature does not exist.
@@ -111,14 +132,16 @@ export const createAppServer = ({
   // Order matters: identity runs as middleware, so every handler can rely on
   // socket.data.userId being present and valid.
   registerIdentity(io);
-  registerSocketHandlers(io, boards, { ai, features });
+  registerSocketHandlers(io, boards, { ai, features, storage });
 
   app.get('/hello', async (_, res) => {
     res.send('Hello World');
   });
 
+  registerUploadRoutes(app, { storage, config });
+
   // Everything else (pages, assets, API routes) falls through to Next.js.
   app.all('*', (req, res) => nextHandler(req, res));
 
-  return { app, server, io, rooms, boards, config, ai, features, redis };
+  return { app, server, io, rooms, boards, config, ai, features, redis, storage, snapshots };
 };

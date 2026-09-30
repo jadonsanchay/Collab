@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, max } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, isNull, max } from 'drizzle-orm';
 import { v4 } from 'uuid';
 
 import type { ChatMessage, Move } from '@/common/types/global';
@@ -9,12 +9,14 @@ import {
   boardMoves,
   boardOps,
   boards,
+  boardSnapshots,
   chatMessages,
   toChatMessage,
   users,
 } from '../db/schema';
 import { logger } from '../logger';
 import { type HydratedRoom, MAX_CHAT_HISTORY } from '../rooms/RoomStore';
+import type { ObjectStorage } from '../storage';
 import type { Persistence } from './persistence';
 
 type Pending =
@@ -30,6 +32,8 @@ export type DbPersistenceOptions = {
   flushSize: number;
   /** A failed batch is retried this many times before it is dropped. */
   maxRetries: number;
+  /** Resolves snapshot keys to URLs. Without it, snapshots are not used on load. */
+  storage?: ObjectStorage;
 };
 
 export const DEFAULT_DB_PERSISTENCE: DbPersistenceOptions = {
@@ -84,10 +88,35 @@ export class DbPersistence implements Persistence {
 
     if (!board) return null;
 
+    // With a snapshot, only the tail after it is loaded: the picture stands
+    // in for everything before, which is the point of rendering it.
+    const [latest] = this.options.storage
+      ? await this.db
+          .select()
+          .from(boardSnapshots)
+          .where(eq(boardSnapshots.boardId, roomId))
+          .orderBy(desc(boardSnapshots.seq))
+          .limit(1)
+      : [];
+
+    const snapshot =
+      latest && this.options.storage
+        ? {
+            url: this.options.storage.publicUrl(latest.imageKey),
+            seq: Number(latest.seq),
+            width: latest.width,
+            height: latest.height,
+          }
+        : null;
+
     const moveRows = await this.db
       .select({ payload: boardMoves.payload })
       .from(boardMoves)
-      .where(eq(boardMoves.boardId, roomId))
+      .where(
+        snapshot
+          ? and(eq(boardMoves.boardId, roomId), gt(boardMoves.seq, snapshot.seq))
+          : eq(boardMoves.boardId, roomId),
+      )
       .orderBy(boardMoves.seq);
 
     const chatRows = await this.db
@@ -110,6 +139,7 @@ export class DbPersistence implements Persistence {
       seq: Number(highest ?? 0),
       moves: moveRows.map((row) => row.payload),
       chat: chatRows.reverse().map(toChatMessage),
+      snapshot,
     };
   }
 

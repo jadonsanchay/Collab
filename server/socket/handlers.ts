@@ -25,6 +25,7 @@ import type { AiService } from '../ai';
 import type { BoardStore } from '../boards/BoardStore';
 import { logger } from '../logger';
 import { toPublicUsers } from '../rooms/types';
+import type { ObjectStorage } from '../storage';
 import type { SocketData } from './identity';
 import { withinLimit } from './rateLimit';
 import { safeHandler } from './safeHandler';
@@ -37,11 +38,51 @@ export type HandlerDeps = {
   /** Null when the AI teammate is switched off; the AI handlers then drop everything. */
   ai: AiService | null;
   features: Features;
+  /** Where inline image payloads are moved to, so moves carry URLs, not bytes. */
+  storage: ObjectStorage | null;
 };
 
 const DEFAULT_DEPS: HandlerDeps = {
   ai: null,
   features: { ai: false, rewind: true },
+  storage: null,
+};
+
+const DATA_URL = /^data:(image\/[a-z+.-]+);base64,(.+)$/iu;
+
+const EXTENSION: Record<string, string> = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/webp': 'webp',
+  'image/gif': 'gif',
+};
+
+/**
+ * An image that arrived inline (an older client, or an upload that could not
+ * be presigned) is written to storage and the move rewritten to its URL, so
+ * what is stored and replayed is small. Left as it came if anything fails:
+ * a large move beats a lost image.
+ */
+const offloadInlineImage = async (
+  storage: ObjectStorage,
+  roomId: string,
+  move: { clientId: string; img: { base64?: string; url?: string } },
+) => {
+  const match = move.img.base64 ? DATA_URL.exec(move.img.base64) : null;
+
+  if (!match) return;
+
+  const [, contentType, data] = match;
+  const key = `uploads/${roomId}/${move.clientId}.${EXTENSION[contentType] ?? 'bin'}`;
+
+  try {
+    await storage.put(key, Buffer.from(data, 'base64'), contentType);
+
+    // eslint-disable-next-line no-param-reassign -- rewriting the payload in place is the purpose
+    move.img = { url: storage.publicUrl(key) };
+  } catch (error) {
+    logger.warn({ err: error, roomId }, 'could not offload an inline image; keeping it inline');
+  }
 };
 
 /**
@@ -277,6 +318,10 @@ export const registerSocketHandlers = (
         if (!parsed.success) {
           dropped('draw', parsed.error);
           return;
+        }
+
+        if (deps.storage && parsed.data.options.shape === 'image') {
+          await offloadInlineImage(deps.storage, roomId, parsed.data);
         }
 
         // The store stamps id, timestamp and seq: ordering and identity are

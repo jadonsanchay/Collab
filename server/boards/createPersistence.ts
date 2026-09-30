@@ -1,6 +1,7 @@
 import { type Config, resolveStorage } from '../config';
 import { createPglite, createPostgres, type Database } from '../db/client';
 import { logger } from '../logger';
+import type { ObjectStorage } from '../storage';
 import { DbPersistence } from './dbPersistence';
 import type { Persistence } from './persistence';
 
@@ -14,25 +15,26 @@ export const DEFAULT_PGLITE_DIR = '.data/pglite';
  */
 export const createPersistence = async (
   config: Config,
+  storage?: ObjectStorage,
 ): Promise<{ persistence: Persistence; database: Database } | null> => {
-  const storage = resolveStorage(config);
+  const kind = resolveStorage(config);
 
-  if (storage === 'memory') {
+  if (kind === 'memory') {
     logger.info('storage: memory (rooms are lost on restart)');
     return null;
   }
 
-  if (storage === 'postgres') {
+  if (kind === 'postgres') {
     if (!config.DATABASE_URL) {
       throw new Error('STORAGE=postgres requires DATABASE_URL');
     }
 
     const database = await createPostgres(config.DATABASE_URL);
 
-    return { persistence: new DbPersistence(database), database };
+    return { persistence: new DbPersistence(database, { storage }), database };
   }
 
   const database = await createPglite(config.PGLITE_DIR ?? DEFAULT_PGLITE_DIR);
 
-  return { persistence: new DbPersistence(database), database };
+  return { persistence: new DbPersistence(database, { storage }), database };
 };

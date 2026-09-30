@@ -49,6 +49,11 @@ export type ServerRoom = {
   /** Last sequence number handed out in this room. */
   seq: number;
   /**
+   * Sequence covered by the latest server-rendered snapshot, or 0 when there
+   * is none. Moves up to it are compacted into one image for cold loads.
+   */
+  snapshotSeq: number;
+  /**
    * Every `clientId` this room has accepted. A resent move is recognised
    * instead of being drawn a second time, which is what makes a retry safe.
    */
