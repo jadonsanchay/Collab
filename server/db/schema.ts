@@ -1,6 +1,7 @@
 import {
   bigint,
   boolean,
+  customType,
   index,
   integer,
   jsonb,
@@ -10,7 +11,15 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
+
 import type { ChatMessage, Move } from '@/common/types/global';
+
+/** Postgres `bytea` as a Buffer; Drizzle has no built-in for it. */
+const customBytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType: () => 'bytea',
+  toDriver: (value) => value,
+  fromDriver: (value) => (Buffer.isBuffer(value) ? value : Buffer.from(value as Uint8Array)),
+});
 
 /**
  * The persistent model. Boards, their current moves, an append-only op log
@@ -210,6 +219,31 @@ export const shareLinks = pgTable('share_links', {
   createdAt: createdAt(),
   revokedAt: timestamp('revoked_at', { withTimezone: true, mode: 'date' }),
 });
+
+/** The current Yjs document of a vector board, encoded, written on debounce. */
+export const boardDocs = pgTable('board_docs', {
+  boardId: text('board_id')
+    .primaryKey()
+    .references(() => boards.id, { onDelete: 'cascade' }),
+  state: customBytea('state').notNull(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});
+
+/** Every update applied to a vector board, in order: Rewind for vector boards folds this. */
+export const boardDocUpdates = pgTable(
+  'board_doc_updates',
+  {
+    id: text('id').primaryKey(),
+    boardId: text('board_id')
+      .notNull()
+      .references(() => boards.id, { onDelete: 'cascade' }),
+    seq: bigint('seq', { mode: 'number' }).notNull(),
+    userId: text('user_id'),
+    update: customBytea('update').notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [index('board_doc_updates_board_seq_idx').on(table.boardId, table.seq)],
+);
 
 export const aiJobs = pgTable('ai_jobs', {
   id: text('id').primaryKey(),
