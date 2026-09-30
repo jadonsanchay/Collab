@@ -14,6 +14,7 @@ import type { Config } from '../config';
 import { logger } from '../logger';
 import type { RoomStore } from '../rooms/RoomStore';
 import type { SocketData } from '../socket/identity';
+import { createAnthropicAgent } from './agent';
 import { createFakeAgent } from './fakeAgent';
 import {
   interpret,
@@ -73,13 +74,19 @@ export const createAiService = ({
 
   let agent: SketchAgent | null = options.agent ?? null;
 
+  // The fake wins when both are set: nobody wants a test run to spend money.
   if (!agent && config.AI_FAKE) agent = createFakeAgent();
 
+  if (!agent && config.ANTHROPIC_API_KEY) {
+    agent = createAnthropicAgent({
+      apiKey: config.ANTHROPIC_API_KEY,
+      model: config.AI_MODEL,
+    });
+  }
+
   if (!agent) {
-    // The Anthropic agent arrives with Step 4; until then a key alone is not
-    // enough to turn the feature on.
     logger.warn(
-      'AI_ENABLED is set but no agent is available (set AI_FAKE=1); AI disabled',
+      'AI_ENABLED is set but no agent is available (set ANTHROPIC_API_KEY or AI_FAKE=1); AI disabled',
     );
 
     return null;

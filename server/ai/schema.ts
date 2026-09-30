@@ -78,6 +78,74 @@ export const drawingProgramSchema = z.object({
   note: z.string().max(300).optional(),
 });
 
+const looseColor = z.string();
+const loosePoint = z.object({ x: z.number(), y: z.number() });
+
+/**
+ * The same shape without ranges, patterns or length bounds. This is what the
+ * model is constrained to: structured outputs enforce structure and types,
+ * and the strict schema above is applied to the result afterwards, with one
+ * retry carrying the validation errors. `note` is nullable rather than
+ * optional because strict output formats require every property.
+ */
+export const drawingProgramOutputSchema = z.object({
+  primitives: z.array(
+    z.discriminatedUnion('type', [
+      z.object({
+        type: z.literal('line'),
+        points: z.array(loosePoint),
+        stroke: looseColor,
+        width: z.number(),
+      }),
+      z.object({
+        type: z.literal('rect'),
+        x: z.number(),
+        y: z.number(),
+        w: z.number(),
+        h: z.number(),
+        stroke: looseColor,
+        fill: looseColor.nullable(),
+        width: z.number(),
+      }),
+      z.object({
+        type: z.literal('ellipse'),
+        cx: z.number(),
+        cy: z.number(),
+        rx: z.number(),
+        ry: z.number(),
+        stroke: looseColor,
+        fill: looseColor.nullable(),
+        width: z.number(),
+      }),
+      z.object({
+        type: z.literal('arrow'),
+        from: loosePoint,
+        to: loosePoint,
+        stroke: looseColor,
+        width: z.number(),
+      }),
+      z.object({
+        type: z.literal('text'),
+        x: z.number(),
+        y: z.number(),
+        text: z.string(),
+        size: z.number(),
+        color: looseColor,
+      }),
+      z.object({
+        type: z.literal('sticky'),
+        x: z.number(),
+        y: z.number(),
+        w: z.number(),
+        h: z.number(),
+        text: z.string(),
+        fill: looseColor,
+      }),
+    ]),
+  ),
+  note: z.string().nullable(),
+});
+
 export type DrawingProgram = z.infer<typeof drawingProgramSchema>;
 export type Primitive = z.infer<typeof primitiveSchema>;
 export type ProgramPoint = z.infer<typeof programPointSchema>;
