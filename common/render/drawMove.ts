@@ -1,6 +1,8 @@
 import { getStringFromRgba } from '@/common/lib/rgba';
 import { Move } from '@/common/types/global';
 
+import { TEXT_LINE_HEIGHT, textFont } from './text';
+
 /**
  * Pure so it can run against any 2D context — the committed canvas, a live
  * preview layer, or (Phase 3) the server. Caches decoded images across calls
@@ -66,6 +68,24 @@ export const drawMove = (
       ctx.stroke();
       ctx.fill();
       ctx.closePath();
+      break;
+    }
+
+    case 'text': {
+      if (!move.text) break;
+
+      const { content, fontSize } = move.text;
+      const [x, y] = path[0];
+
+      // Text is filled in the line colour: the fill colour is the shape
+      // interior, which text does not have.
+      ctx.font = textFont(fontSize);
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = getStringFromRgba(options.lineColor);
+
+      content.split('\n').forEach((line, index) => {
+        ctx.fillText(line, x, y + index * fontSize * TEXT_LINE_HEIGHT);
+      });
       break;
     }
 

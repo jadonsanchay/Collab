@@ -16,6 +16,11 @@ type DrawingState = {
    * move that replaces it.
    */
   strokeId: string | null;
+  /**
+   * The open text box, in board coordinates, or null when the text tool has
+   * nothing placed. Driven by `modules/room/modules/board/lib/textTool.ts`.
+   */
+  textInput: { x: number; y: number; value: string } | null;
 };
 
 /**
@@ -28,4 +33,5 @@ export const useDrawingStore = create<DrawingState>(() => ({
   tempCircle: DEFAULT_TEMP_CIRCLE,
   tempSize: DEFAULT_TEMP_SIZE,
   strokeId: null,
+  textInput: null,
 }));

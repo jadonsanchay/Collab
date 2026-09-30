@@ -13,6 +13,12 @@ export const MAX_IMAGE_BASE64_LENGTH = 1_500_000;
 /** The toolbar slider offers 1 to 20; the extra headroom is deliberate. */
 export const MAX_LINE_WIDTH = 100;
 
+/** A paragraph, not a document: text moves are labels and notes. */
+export const MAX_TEXT_LENGTH = 2000;
+
+/** The tool maps line width onto 12 to 64; the headroom is for scaled AI output. */
+export const MAX_FONT_SIZE = 200;
+
 // Zod 4's `z.number()` already rejects NaN and Infinity, so coordinates need
 // no explicit finiteness check. They are otherwise unbounded on purpose:
 // panning puts legitimate strokes outside the canvas rectangle, and a wrong
@@ -30,7 +36,21 @@ export const rgbaColorSchema = z.object({
   a: z.number().min(0).max(1),
 });
 
-export const shapeSchema = z.enum(['line', 'circle', 'rect', 'image']);
+export const shapeSchema = z.enum(['line', 'circle', 'rect', 'image', 'text']);
+
+/** Payload of a `text` move: the anchor is `path[0]`, everything else is here. */
+export const moveTextSchema = z.object({
+  content: z.string().max(MAX_TEXT_LENGTH),
+  fontSize: z.number().positive().max(MAX_FONT_SIZE),
+});
+
+/**
+ * Server-side bookkeeping attached to a move. `requestId` groups every move
+ * Sketch drew for one AI request so the whole batch can be undone at once.
+ */
+export const moveMetaSchema = z.object({
+  requestId: z.string().optional(),
+});
 
 export const ctxModeSchema = z.enum(['eraser', 'draw', 'select']);
 
@@ -65,8 +85,18 @@ export const moveSchema = z.object({
   img: z.object({ base64: z.string().max(MAX_IMAGE_BASE64_LENGTH) }),
   path: z.array(pointSchema).max(MAX_PATH_POINTS),
   options: ctxOptionsSchema,
+  /** Present only when `options.shape` is `text`. Optional so older payloads still parse. */
+  text: moveTextSchema.optional(),
   timestamp: z.number(),
   id: z.string(),
+  /**
+   * Who drew it. Server-assigned from the handshake identity and kept for
+   * the life of the move, including after its author leaves the room, so
+   * history can always be filtered by person. Empty string before the move
+   * has been through the server.
+   */
+  userId: z.string(),
+  meta: moveMetaSchema.optional(),
   /**
    * Server-assigned, monotonic within a room. Clients order by this instead of
    * by `timestamp`, which came from `Date.now()` on whichever machine drew and
@@ -82,18 +112,21 @@ export const moveSchema = z.object({
 });
 
 /**
- * What a client may send on `draw`. The server assigns `id`, `timestamp` and
- * `seq`; omitting them here means a client cannot forge any of them, since
- * `z.object` strips unknown keys. `clientId` is the exception: it has to come
- * from the client, because it is what makes a retry recognisable.
+ * What a client may send on `draw`. The server assigns `id`, `timestamp`,
+ * `seq`, `userId` and `meta`; omitting them here means a client cannot forge
+ * any of them, since `z.object` strips unknown keys. `clientId` is the
+ * exception: it has to come from the client, because it is what makes a retry
+ * recognisable.
  */
 export const drawPayloadSchema = moveSchema
-  .omit({ id: true, timestamp: true, seq: true })
+  .omit({ id: true, timestamp: true, seq: true, userId: true, meta: true })
   .extend({ clientId: z.string().uuid() });
 
 export type Shape = z.infer<typeof shapeSchema>;
 export type CtxMode = z.infer<typeof ctxModeSchema>;
 export type CtxOptions = z.infer<typeof ctxOptionsSchema>;
 export type Move = z.infer<typeof moveSchema>;
+export type MoveText = z.infer<typeof moveTextSchema>;
+export type MoveMeta = z.infer<typeof moveMetaSchema>;
 export type DrawPayload = z.infer<typeof drawPayloadSchema>;
 export type Point = z.infer<typeof pointSchema>;

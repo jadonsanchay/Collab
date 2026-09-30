@@ -12,6 +12,7 @@ const SHORTCUTS: [string, string][] = [
   ['Line', 'L'],
   ['Rectangle', 'R'],
   ['Circle', 'O'],
+  ['Text', 'T'],
   ['Image', 'I'],
   ['Decrease width', '['],
   ['Increase width', ']'],

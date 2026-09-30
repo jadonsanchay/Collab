@@ -19,6 +19,7 @@ import {
 import { Move } from '@/common/types/global';
 
 import { drawRect, drawCircle } from '../helpers/Canvas.helpers';
+import { commitTextInput, openTextInput } from '../lib/textTool';
 import { useLiveCtx } from './useCtx';
 import { useLiveStrokeBroadcast } from './useLiveStrokeBroadcast';
 
@@ -55,6 +56,16 @@ export const useDraw = (blocked: boolean) => {
 
     const { x: vx, y: vy, scale } = useViewportStore.getState();
     const [finalX, finalY] = [toBoard(x, vx, scale), toBoard(y, vy, scale)];
+
+    if (options.mode === 'draw' && options.shape === 'text') {
+      // Text is typed, not dragged: a click places the editor and
+      // `TextInput` sends the move. Any box already open is committed first
+      // so the click never loses what was typed. Nothing streams live.
+      commitTextInput();
+      openTextInput(finalX, finalY);
+
+      return;
+    }
 
     setDrawing(true);
     setupCtxOptions();
@@ -140,6 +151,11 @@ export const useDraw = (blocked: boolean) => {
 
   const handleEndDrawing = () => {
     if (!liveCtx || blocked) return;
+
+    // A pointer-up with no stroke in progress (a text placement, or a
+    // release after a cancelled gesture) has nothing to commit. Without this
+    // an empty-path move was sent and stored for every stray click.
+    if (!drawing) return;
 
     setDrawing(false);
     clearLiveLayer();

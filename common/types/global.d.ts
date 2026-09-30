@@ -11,6 +11,8 @@ export type {
   CtxOptions,
   DrawPayload,
   Move,
+  MoveMeta,
+  MoveText,
   Point,
   Shape,
 } from '../schemas/move';

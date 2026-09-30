@@ -1,4 +1,4 @@
-import { Circle, RectangleHorizontal, Waves } from 'lucide-react';
+import { Circle, RectangleHorizontal, Type, Waves } from 'lucide-react';
 
 import HotkeyTooltip from '@/common/components/HotkeyTooltip';
 import { ToggleGroup, ToggleGroupItem } from '@/common/components/ui/toggle-group';
@@ -48,6 +48,16 @@ const ShapeSelector = () => {
           disabled={options.mode !== 'draw'}
         >
           <Circle />
+        </ToggleGroupItem>
+      </HotkeyTooltip>
+
+      <HotkeyTooltip label="Text" hotkey="T">
+        <ToggleGroupItem
+          value="text"
+          aria-label="Text"
+          disabled={options.mode !== 'draw'}
+        >
+          <Type />
         </ToggleGroupItem>
       </HotkeyTooltip>
     </ToggleGroup>

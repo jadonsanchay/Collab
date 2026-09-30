@@ -69,6 +69,9 @@ const CommandPalette = () => {
           <CommandItem onSelect={run(() => setOptions((prev) => ({ ...prev, mode: 'draw', shape: 'circle' })))}>
             Circle
           </CommandItem>
+          <CommandItem onSelect={run(() => setOptions((prev) => ({ ...prev, mode: 'draw', shape: 'text' })))}>
+            Text
+          </CommandItem>
           <CommandItem onSelect={run(openImageInput)}>Insert image</CommandItem>
         </CommandGroup>
 

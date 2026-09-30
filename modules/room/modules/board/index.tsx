@@ -3,6 +3,7 @@ import CursorBroadcaster from './components/CursorBroadcaster';
 import CursorLayer from './components/CursorLayer';
 import MoveImage from './components/MoveImage';
 import SelectionBar from './components/SelectionBar';
+import TextInput from './components/TextInput';
 
 const Board = () => (
   <>
@@ -11,6 +12,7 @@ const Board = () => (
     <CursorLayer />
     <MoveImage />
     <SelectionBar />
+    <TextInput />
   </>
 );
 

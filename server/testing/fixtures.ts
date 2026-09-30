@@ -28,5 +28,6 @@ export const makeMove = (overrides: Partial<Move> = {}): Move => ({
   id: '',
   seq: 0,
   clientId: v4(),
+  userId: '',
   ...overrides,
 });

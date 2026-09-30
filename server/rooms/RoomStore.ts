@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import { v4 } from 'uuid';
 
 import { COLORS_ARRAY } from '@/common/constants/colors';
-import type { DrawPayload, Move } from '@/common/types/global';
+import type { DrawPayload, Move, MoveMeta } from '@/common/types/global';
 
 import type { RoomUser, ServerRoom } from './types';
 
@@ -347,8 +347,18 @@ export class RoomStore {
    * Stamps a validated payload with the fields only the server may set and
    * stores it. A `clientId` this room has already accepted is reported as a
    * duplicate rather than stored again, which is what makes a resend safe.
+   *
+   * `userId` is stamped here and never removed, including when the author
+   * leaves and the move folds into `drawed`, so history can always be
+   * filtered by person. `meta` is optional server bookkeeping (an AI request
+   * id, for instance) that the client is not allowed to set.
    */
-  addMove(roomId: string, userId: string, payload: DrawPayload): AddMoveResult {
+  addMove(
+    roomId: string,
+    userId: string,
+    payload: DrawPayload,
+    meta?: MoveMeta,
+  ): AddMoveResult {
     const room = this.rooms.get(roomId);
 
     if (!room) return { status: 'no_room' };
@@ -362,6 +372,8 @@ export class RoomStore {
       id: v4(),
       timestamp: Date.now(),
       seq: room.seq,
+      userId,
+      ...(meta ? { meta } : {}),
     };
 
     const userMoves = room.usersMoves.get(userId);

@@ -8,6 +8,7 @@ import {
   isPenTool,
   isRectTool,
   isSelectTool,
+  isTextTool,
   isTypingTarget,
   isWidthDecrease,
   isWidthIncrease,
@@ -18,7 +19,7 @@ const MIN_WIDTH = 1;
 const MAX_WIDTH = 20;
 
 /**
- * V/H/P/E/R/O/L/I plus `[`/`]` for line width — the single-letter tool
+ * V/H/P/E/R/O/L/T/I plus `[`/`]` for line width — the single-letter tool
  * shortcuts, wired directly against the options store (imperative
  * getState/setState, same pattern as the other global keydown listeners in
  * this codebase) rather than through component state, since this hook is
@@ -41,6 +42,8 @@ export const useToolHotkeys = ({ onOpenImageInput }: { onOpenImageInput: () => v
         setOptions((prev) => ({ ...prev, mode: 'draw', shape: 'rect' }));
       } else if (isCircleTool(event)) {
         setOptions((prev) => ({ ...prev, mode: 'draw', shape: 'circle' }));
+      } else if (isTextTool(event)) {
+        setOptions((prev) => ({ ...prev, mode: 'draw', shape: 'text' }));
       } else if (isImageTool(event)) {
         onOpenImageInput();
       } else if (isWidthDecrease(event)) {

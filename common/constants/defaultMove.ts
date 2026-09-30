@@ -29,4 +29,6 @@ export const DEFAULT_MOVE: Move = {
   // client sets a real clientId at the moment it sends the move.
   seq: 0,
   clientId: '',
+  // Assigned by the server from the handshake identity, like seq.
+  userId: '',
 };

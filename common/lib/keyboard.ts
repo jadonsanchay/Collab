@@ -78,6 +78,7 @@ export const isRectTool = toolKey('r');
 export const isCircleTool = toolKey('o');
 export const isLineTool = toolKey('l');
 export const isImageTool = toolKey('i');
+export const isTextTool = toolKey('t');
 
 export const isWidthDecrease = (event: KeyboardEvent): boolean =>
   !hasModifier(event) && event.key === '[';
