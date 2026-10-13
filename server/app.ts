@@ -26,6 +26,7 @@ import type { Persistence } from './boards/persistence';
 import { registerBoardRoutes } from './boards/routes';
 import { templateSummaries } from './boards/templates';
 import { loadConfig, type Config } from './config';
+import { logger } from './logger';
 import type { Database } from './db/client';
 import { users } from './db/schema';
 import { SnapshotService, type SnapshotOptions } from './jobs/snapshots';
@@ -165,8 +166,16 @@ export const createAppServer = ({
 
   // Sign-in exists only with a database to keep accounts in and a secret to
   // sign sessions with. Guests need neither.
-  const authConfig = database ? buildAuthConfig(config, database.db) : null;
-  const guestSecret = config.AUTH_SECRET ?? DEV_GUEST_SECRET;
+  // Outside production a missing AUTH_SECRET falls back to the dev secret, so
+  // `STORAGE=pglite npm run dev` has working sign-in with nothing else set.
+  const devSecret = config.NODE_ENV !== 'production' && database ? DEV_GUEST_SECRET : undefined;
+  const authSecret = config.AUTH_SECRET ?? devSecret;
+  const authConfigEnv = { ...config, AUTH_SECRET: authSecret };
+
+  if (!config.AUTH_SECRET && devSecret) logger.warn('AUTH_SECRET unset; using the dev secret for sign-in');
+
+  const authConfig = database ? buildAuthConfig(authConfigEnv, database.db) : null;
+  const guestSecret = authSecret ?? DEV_GUEST_SECRET;
   const rtc = rtcSettings(config);
   const roster = rtc ? new CallRoster() : null;
 
@@ -186,7 +195,7 @@ export const createAppServer = ({
   // socket.data.userId being present and valid.
   registerIdentity(io, {
     resolveSession: authConfig
-      ? (cookieHeader) => resolveSession(cookieHeader, config.AUTH_SECRET as string)
+      ? (cookieHeader) => resolveSession(cookieHeader, authSecret as string)
       : undefined,
     isAccountId: database
       ? async (userId) => {
@@ -236,7 +245,7 @@ export const createAppServer = ({
   registerOpsRoutes(app, readinessChecks);
   registerUploadRoutes(app, { storage, config });
 
-  const authDeps = { config, authConfig, db: database?.db ?? null, guestSecret };
+  const authDeps = { config: authConfigEnv, authConfig, db: database?.db ?? null, guestSecret };
   registerAuthRoutes(app, authDeps);
 
   attachVectorSync(server, { store: vectorDocs, boards, roles, auth: authDeps });

@@ -36,6 +36,10 @@ export const users = pgTable('users', {
   /** Null for guests. */
   email: text('email').unique(),
   name: text('name'),
+  /** Unique handle for password sign-in; null for guests and OAuth-only accounts. */
+  username: text('username').unique(),
+  /** scrypt hash from `server/auth/password.ts`; null when the account has no password. */
+  passwordHash: text('password_hash'),
   image: text('image'),
   emailVerified: timestamp('email_verified', { withTimezone: true, mode: 'date' }),
   isGuest: boolean('is_guest').notNull().default(true),

@@ -21,7 +21,7 @@ For deeper implementation notes (module layout, conventions, gotchas), see [CLAU
 - **Sketch, an AI teammate** (opt-in): joins the room with a cursor, cleans up a selection, draws from a prompt or an `@sketch` chat mention, and summarizes the board as stickies; its work is undoable as one action. See [docs/ai-teammate.md](docs/ai-teammate.md)
 - **Rewind**: scrub the board's history, filter by author, play it back, and export a WebM timelapse
 - **Boards that last** (with storage on): a dashboard of your boards with templates, thumbnails, rename, duplicate, star and delete; server-rendered snapshots for fast loads
-- **Accounts and roles** (with storage on): sign in with Google or GitHub, guests keep working and are merged on sign-in; owner, editor, commenter and viewer roles enforced server-side; invitation links with a role and an expiry
+- **Accounts and roles** (with storage on): sign up with a name, username, email and password, or with Google or GitHub; guests keep working and are merged on sign-in; owner, editor, commenter and viewer roles enforced server-side; invitation links with a role and an expiry
 - **Objects boards** (beta): an infinite board of selectable objects — pen strokes, shapes, text, sticky notes, connectors, frames — synced through a Yjs document, with move/resize/rotate, snapping, in-place text editing two people can share, per-user undo, SVG export, Sketch drawing editable objects, Rewind over the document history, and one-click conversion of an existing drawing board. See [docs/object-model.md](docs/object-model.md)
 
 ## Architecture
@@ -102,7 +102,7 @@ Node 22 is expected (see `.nvmrc`).
 | `DATABASE_URL`      | —        | Hosted Postgres                                                                                        |
 | `PGLITE_DIR`        | `.data/pglite` | Embedded Postgres directory for `STORAGE=pglite`                                                 |
 | `REDIS_URL`         | —        | Cross-node broadcasts and shared rate limits                                                           |
-| `AUTH_SECRET`       | —        | Signs sessions, guest cookies and upload URLs; required for sign-in                                    |
+| `AUTH_SECRET`       | dev secret outside production | Signs sessions, guest cookies and upload URLs; required in production                     |
 | `AUTH_GOOGLE_ID/SECRET`, `AUTH_GITHUB_ID/SECRET` | — | OAuth providers                                                                       |
 | `AUTH_DEV_LOGIN`    | `false`  | Email-only dev sign-in (never in production)                                                           |
 | `S3_BUCKET` and friends | —    | S3-compatible object storage instead of the local `/uploads` directory                                 |

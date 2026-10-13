@@ -3,11 +3,11 @@
   "version": "0.5.0",
   "private": true,
   "scripts": {
-    "dev": "tsx watch server/index.ts",
+    "dev": "tsx watch --env-file-if-exists=.env server/index.ts",
     "build:server": "tsup",
     "build:next": "next build",
     "build": "npm run build:server && npm run build:next",
-    "start": "NODE_ENV=production node build/index.js",
+    "start": "NODE_ENV=production node --env-file-if-exists=.env build/index.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -1,7 +1,10 @@
+import { randomUUID } from 'crypto';
 import { ExpressAuth, type ExpressAuthConfig, getSession } from '@auth/express';
 import { parseCookie } from 'cookie';
+import { eq, or } from 'drizzle-orm';
 import express, { type Express, type Request } from 'express';
 
+import { registerSchema } from '@/common/schemas/auth';
 import { userIdSchema } from '@/common/schemas/user';
 
 import type { Config } from '../config';
@@ -10,6 +13,7 @@ import { users } from '../db/schema';
 import { logger } from '../logger';
 import { AUTH_BASE_PATH } from './authConfig';
 import { GUEST_COOKIE, guestCookieOptions, signGuest, verifyGuest } from './guestCookie';
+import { hashPassword } from './password';
 import { type Identity, resolveSession } from './session';
 
 export type AuthDeps = {
@@ -76,6 +80,50 @@ export const registerAuthRoutes = (app: Express, deps: AuthDeps) => {
 
   app.get('/api/me', async (req, res) => {
     res.json(await identityFromRequest(req, deps));
+  });
+
+  /**
+   * Creates a password account. Sign-in itself goes through Auth.js's
+   * `password` provider afterwards, so this only has to store the row.
+   */
+  app.post('/api/account/register', express.json({ limit: '4kb' }), async (req, res) => {
+    if (!deps.authConfig || !deps.db) {
+      res.status(404).json({ error: 'sign-in is not available on this server' });
+      return;
+    }
+
+    const parsed = registerSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      const [issue] = parsed.error.issues;
+      res.status(400).json({ error: `${issue.path.join('.')}: ${issue.message}`, field: issue.path[0] });
+      return;
+    }
+
+    const { name, username, email, password } = parsed.data;
+    const [taken] = await deps.db
+      .select({ email: users.email, username: users.username })
+      .from(users)
+      .where(or(eq(users.email, email), eq(users.username, username)));
+
+    if (taken) {
+      const field = taken.email === email ? 'email' : 'username';
+      res.status(409).json({ error: `that ${field} is already registered`, field });
+      return;
+    }
+
+    const id = randomUUID();
+
+    await deps.db.insert(users).values({
+      id,
+      name,
+      username,
+      email,
+      passwordHash: await hashPassword(password),
+      isGuest: false,
+    });
+
+    res.status(201).json({ userId: id, name, username, email });
   });
 
   app.post('/api/me/guest', express.json({ limit: '1kb' }), async (req, res) => {

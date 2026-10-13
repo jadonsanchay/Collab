@@ -18,7 +18,7 @@ const AccountButton = () => {
     return (
       // eslint-disable-next-line @next/next/no-html-link-for-pages -- an Express route, not a page
       <a
-        href="/api/auth/signin"
+        href="/login"
         className="flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white"
       >
         <LogIn className="size-4" /> Sign in

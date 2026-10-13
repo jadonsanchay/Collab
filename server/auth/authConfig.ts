@@ -4,12 +4,15 @@ import type { ExpressAuthConfig } from '@auth/express';
 import Credentials from '@auth/express/providers/credentials';
 import GitHub from '@auth/express/providers/github';
 import Google from '@auth/express/providers/google';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
+
+import { loginSchema } from '@/common/schemas/auth';
 
 import type { Config } from '../config';
 import type { Db } from '../db/client';
 import { accounts, sessions, users, verificationTokens } from '../db/schema';
 import { logger } from '../logger';
+import { verifyPassword } from './password';
 
 export const AUTH_BASE_PATH = '/api/auth';
 
@@ -24,7 +27,32 @@ export const AUTH_BASE_PATH = '/api/auth';
 export const buildAuthConfig = (config: Config, db: Db): ExpressAuthConfig | null => {
   if (!config.AUTH_SECRET) return null;
 
-  const providers: ExpressAuthConfig['providers'] = [];
+  const providers: ExpressAuthConfig['providers'] = [
+    // Email or username plus password, against accounts made by
+    // POST /api/account/register. Always present when sign-in exists.
+    Credentials({
+      id: 'password',
+      name: 'Email or username and password',
+      credentials: {
+        identifier: { label: 'Email or username', type: 'text' },
+        password: { label: 'Password', type: 'password' },
+      },
+      authorize: async (credentials) => {
+        const parsed = loginSchema.safeParse(credentials);
+        if (!parsed.success) return null;
+
+        const { identifier, password } = parsed.data;
+        const [account] = await db
+          .select()
+          .from(users)
+          .where(or(eq(users.email, identifier), eq(users.username, identifier)));
+
+        if (!account || !(await verifyPassword(password, account.passwordHash))) return null;
+
+        return { id: account.id, email: account.email, name: account.name, image: account.image };
+      },
+    }),
+  ];
 
   if (config.AUTH_GOOGLE_ID && config.AUTH_GOOGLE_SECRET) {
     providers.push(
@@ -69,15 +97,15 @@ export const buildAuthConfig = (config: Config, db: Db): ExpressAuthConfig | nul
     );
   }
 
-  if (!providers.length) {
-    logger.info('AUTH_SECRET is set but no provider is configured; sign-in disabled');
-    return null;
-  }
+  logger.info({ providers: providers.length }, 'sign-in enabled');
 
   return {
     secret: config.AUTH_SECRET,
     trustHost: true,
     basePath: AUTH_BASE_PATH,
+    // Our own pages, not Auth.js's generated ones. A failed password lands
+    // back on /login with `?error=CredentialsSignin`.
+    pages: { signIn: '/login', error: '/login' },
     adapter: DrizzleAdapter(db as unknown as Parameters<typeof DrizzleAdapter>[0], {
       usersTable: users,
       accountsTable: accounts,

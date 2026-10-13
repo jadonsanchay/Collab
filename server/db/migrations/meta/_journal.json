@@ -15,6 +15,13 @@
       "when": 1790759927623,
       "tag": "0001_icy_ultimo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791871984940,
+      "tag": "0002_hot_nomad",
+      "breakpoints": true
     }
   ]
 }
