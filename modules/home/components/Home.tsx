@@ -8,6 +8,7 @@ import AccountButton from '@/common/components/AccountButton';
 import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/store/room.store';
+import { useIdentity } from '@/common/store/session.store';
 import {
   MAX_USERNAME_LENGTH,
   ROOM_ID_LENGTH,
@@ -18,8 +19,6 @@ import { useModal } from '@/modules/modal';
 
 import NotFoundModal from '../modals/NotFound';
 
-type TemplateSummary = { id: string; name: string; description: string };
-
 const Home = () => {
   const { openModal } = useModal();
   const setAtomRoomId = useSetRoomId();
@@ -27,15 +26,8 @@ const Home = () => {
   const [roomId, setRoomId] = useState('');
   const [username, setUsername] = useState('');
   const persistent = useFeatureFlag('persistent');
-  const [templates, setTemplates] = useState<TemplateSummary[]>([]);
-  const [templateId, setTemplateId] = useState('blank');
-
-  useEffect(() => {
-    fetch('/api/templates')
-      .then((response) => (response.ok ? response.json() : []))
-      .then((list: TemplateSummary[]) => setTemplates(list))
-      .catch(() => setTemplates([]));
-  }, []);
+  const auth = useFeatureFlag('auth');
+  const identity = useIdentity();
 
   const router = useRouter();
 
@@ -88,7 +80,7 @@ const Home = () => {
     // legacy drawing board, for checking old boards and the conversion path.
     const engine = router.query.engine === 'raster' ? 'raster' : 'vector';
 
-    socket.emit('create_room', parsedUsername.data, { engine, templateId });
+    socket.emit('create_room', parsedUsername.data, { engine });
   };
 
   const handleJoinRoom = (e: FormEvent<HTMLFormElement>) => {
@@ -103,15 +95,18 @@ const Home = () => {
     <div className="flex flex-col items-center py-24">
       {/* Account and dashboard live in the corner, where every app keeps them. */}
       <header className="fixed right-4 top-4 flex items-center gap-2">
-        {persistent && (
-          <Link
-            href="/boards"
-            className="flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-semibold"
-          >
-            <LayoutGrid className="size-4" /> My boards
-          </Link>
+        {auth && (!identity || identity.isGuest) ? (
+          <AccountButton />
+        ) : (
+          persistent && (
+            <Link
+              href="/boards"
+              className="flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white"
+            >
+              <LayoutGrid className="size-4" /> My boards
+            </Link>
+          )
         )}
-        <AccountButton />
       </header>
 
       <h1 className="text-5xl font-extrabold leading-tight sm:text-extra">
@@ -169,29 +164,6 @@ const Home = () => {
 
       <div className="flex flex-col items-center gap-2">
         <h5 className="self-start font-bold leading-tight">Create new room</h5>
-
-        {templates.length > 0 && (
-          <div role="radiogroup" aria-label="Start from" className="grid w-96 grid-cols-2 gap-2 sm:grid-cols-3">
-            {templates.map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                role="radio"
-                aria-checked={templateId === template.id}
-                title={template.description}
-                className={`rounded-lg border px-3 py-2 text-left text-sm ${
-                  templateId === template.id
-                    ? 'border-zinc-900 bg-zinc-900 text-white'
-                    : 'border-zinc-300 hover:border-zinc-500'
-                }`}
-                onClick={() => setTemplateId(template.id)}
-              >
-                <span className="block font-semibold">{template.name}</span>
-                <span className="block truncate text-xs opacity-70">{template.description}</span>
-              </button>
-            ))}
-          </div>
-        )}
 
         <button
           type="button"
