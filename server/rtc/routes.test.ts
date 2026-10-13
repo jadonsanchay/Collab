@@ -24,7 +24,7 @@ const KEY = 'devkey';
 const SECRET = 'devsecret-devsecret-devsecret-devsecret';
 
 const config = {
-  ...loadConfig({}),
+  ...loadConfig({ DEFAULT_ENGINE: 'raster' }),
   RTC_ENABLED: true,
   LIVEKIT_URL: 'wss://calls.example.test',
   LIVEKIT_API_KEY: KEY,

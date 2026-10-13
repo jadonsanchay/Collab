@@ -24,7 +24,7 @@ type Identified = ClientSocket & { userId: string };
  * sockets and fake timers do not mix well.
  */
 const config = {
-  ...loadConfig({}),
+  ...loadConfig({ DEFAULT_ENGINE: 'raster' }),
   USER_GRACE_MS: 120,
   ROOM_GRACE_MS: 150,
   SWEEP_INTERVAL_MS: 20,

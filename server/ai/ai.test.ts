@@ -80,7 +80,7 @@ const expectNoEvent = async <E extends keyof ServerToClientEvents>(
 };
 
 const baseConfig = {
-  ...loadConfig({}),
+  ...loadConfig({ DEFAULT_ENGINE: 'raster' }),
   USER_GRACE_MS: 200,
   ROOM_GRACE_MS: 500,
   SWEEP_INTERVAL_MS: 50,

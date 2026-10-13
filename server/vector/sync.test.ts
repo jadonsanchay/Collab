@@ -23,7 +23,7 @@ import { boardDocUpdates, boards } from '../db/schema';
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-const config = { ...loadConfig({}), USER_GRACE_MS: 60_000 };
+const config = { ...loadConfig({ DEFAULT_ENGINE: 'raster' }), USER_GRACE_MS: 60_000 };
 
 const sticky = (id: string, text: string, createdBy: string): StickyObject => ({
   id,

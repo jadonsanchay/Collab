@@ -37,7 +37,7 @@ describe('upload routes with local storage', () => {
       nextHandler: (_req, res) => {
         res.end('next');
       },
-      config: { ...loadConfig({}), UPLOADS_DIR: dir, UPLOAD_MAX_BYTES: 4096 },
+      config: { ...loadConfig({ DEFAULT_ENGINE: 'raster' }), UPLOADS_DIR: dir, UPLOAD_MAX_BYTES: 4096 },
       storage: new LocalStorage({ dir, secret: 'test-secret' }),
     });
 

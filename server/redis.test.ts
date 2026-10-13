@@ -65,7 +65,7 @@ const startLocalRedis = async (): Promise<{ url: string; stop: () => void }> => 
   return { url, stop: () => child.kill() };
 };
 
-const config = { ...loadConfig({}), USER_GRACE_MS: 200, ROOM_GRACE_MS: 500, SWEEP_INTERVAL_MS: 50 };
+const config = { ...loadConfig({ DEFAULT_ENGINE: 'raster' }), USER_GRACE_MS: 200, ROOM_GRACE_MS: 500, SWEEP_INTERVAL_MS: 50 };
 
 const waitFor = <E extends keyof ServerToClientEvents>(
   socket: ClientSocket,

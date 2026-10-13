@@ -36,7 +36,7 @@ const openTwoWindows = async (browser: import('@playwright/test').Browser) => {
   const alice = await aliceContext.newPage();
   const bob = await bobContext.newPage();
 
-  await alice.goto('/');
+  await alice.goto('/?engine=raster');
   await alice.getByLabel('Enter your name').fill('Alice');
   await alice.getByRole('button', { name: 'Create' }).click();
   await expect(alice.locator('canvas.z-10')).toHaveCount(1);

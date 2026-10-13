@@ -180,7 +180,7 @@ const Dashboard = () => {
   const [boards, setBoards] = useState<BoardCard[]>([]);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [templates, setTemplates] = useState<TemplateSummary[]>([]);
-  const [vectorEngine, setVectorEngine] = useState(false);
+
 
   const load = useCallback(async () => {
     try {
@@ -223,7 +223,7 @@ const Dashboard = () => {
     const response = await fetch('/api/boards', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ templateId, engine: vectorEngine ? 'vector' : 'raster' }),
+      body: JSON.stringify({ templateId }),
     });
 
     if (!response.ok) {
@@ -324,15 +324,7 @@ const Dashboard = () => {
             <h2 id="new-board" className="mb-3 text-lg font-bold">
               New board
             </h2>
-            <label htmlFor="board-engine-vector" className="mb-3 flex items-center gap-2 text-sm">
-              <input
-                id="board-engine-vector"
-                type="checkbox"
-                checked={vectorEngine}
-                onChange={(event) => setVectorEngine(event.target.checked)}
-              />
-              Objects board (beta) — templates apply to drawing boards only
-            </label>
+
             <ul className="flex flex-wrap gap-3">
               {templates.map((template) => (
                 <li key={template.id}>

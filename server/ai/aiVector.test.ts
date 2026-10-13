@@ -17,7 +17,7 @@ import { loadConfig } from '../config';
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const config = {
-  ...loadConfig({}),
+  ...loadConfig({ DEFAULT_ENGINE: 'raster' }),
   USER_GRACE_MS: 60_000,
   ROOM_GRACE_MS: 60_000,
   AI_ENABLED: true,

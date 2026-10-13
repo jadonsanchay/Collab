@@ -16,7 +16,7 @@ test('a remote cursor renders with the sender name, and a dropped socket marks t
   const bob = await bobContext.newPage();
 
   try {
-    await alice.goto('/');
+    await alice.goto('/?engine=raster');
     await alice.getByLabel('Enter your name').fill('Alice');
     await alice.getByRole('button', { name: 'Create' }).click();
     await expect(alice.locator('canvas.z-10')).toHaveCount(1);

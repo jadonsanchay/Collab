@@ -13,7 +13,7 @@ describe('ops endpoints', () => {
       nextHandler: (_req, res) => {
         res.end('next');
       },
-      config: loadConfig({}),
+      config: loadConfig({ DEFAULT_ENGINE: 'raster' }),
       readinessChecks: [
         { name: 'always-ok', check: async () => {} },
         {

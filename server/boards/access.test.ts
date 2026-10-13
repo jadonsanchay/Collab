@@ -20,7 +20,7 @@ import { DbPersistence } from './dbPersistence';
 
 type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-const config = { ...loadConfig({}), USER_GRACE_MS: 200, ROOM_GRACE_MS: 500, SWEEP_INTERVAL_MS: 50 };
+const config = { ...loadConfig({ DEFAULT_ENGINE: 'raster' }), USER_GRACE_MS: 200, ROOM_GRACE_MS: 500, SWEEP_INTERVAL_MS: 50 };
 
 const waitFor = <E extends keyof ServerToClientEvents>(
   socket: ClientSocket,

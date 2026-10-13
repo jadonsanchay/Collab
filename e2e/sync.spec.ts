@@ -55,7 +55,7 @@ test('two windows share a board, a stroke, and a message', async ({
 
   try {
     // --- Alice creates a room (A1) ---
-    await alice.goto('/');
+    await alice.goto('/?engine=raster');
     await alice.getByLabel('Enter your name').fill('Alice');
     await alice.getByRole('button', { name: 'Create' }).click();
 

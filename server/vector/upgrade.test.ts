@@ -77,7 +77,7 @@ describe('upgrading a raster board to objects', () => {
       nextHandler: (_req, res) => {
         res.end('next');
       },
-      config: { ...loadConfig({}), UPLOADS_DIR: dir, USER_GRACE_MS: 60_000 },
+      config: { ...loadConfig({ DEFAULT_ENGINE: 'raster' }), UPLOADS_DIR: dir, USER_GRACE_MS: 60_000 },
       persistence: new DbPersistence(database, { flushMs: 5 }),
       database,
       storage: new LocalStorage({ dir, secret: 's' }),

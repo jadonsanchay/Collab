@@ -41,11 +41,11 @@ const envSchema = z.object({
   /** The history panel. A closed panel by default; this hides it entirely. */
   REWIND_ENABLED: z.stringbool().default(true),
   /**
-   * The engine a board gets when its creator does not choose one. Raster
-   * while the objects engine is in beta; flip to `vector` to make new
-   * boards object documents by default.
+   * The engine a board gets when its creator does not choose one. Every new
+   * board is an objects board; `raster` exists for the legacy drawing
+   * engine, which still opens boards made before the switch.
    */
-  DEFAULT_ENGINE: z.enum(['raster', 'vector']).default('raster'),
+  DEFAULT_ENGINE: z.enum(['raster', 'vector']).default('vector'),
   /**
    * Where boards live. Unset picks from what is configured: `DATABASE_URL`
    * means postgres, `PGLITE_DIR` means the embedded engine, neither means

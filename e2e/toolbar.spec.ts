@@ -7,7 +7,7 @@ import { expect, test } from '@playwright/test';
  */
 
 const createRoom = async (page: import('@playwright/test').Page) => {
-  await page.goto('/');
+  await page.goto('/?engine=raster');
   await page.getByLabel('Enter your name').fill('Alice');
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.locator('canvas.z-10')).toHaveCount(1);

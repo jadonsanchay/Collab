@@ -23,7 +23,7 @@ type ClientSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 const SECRET = 'test-secret-that-is-long-enough';
 
 const config = {
-  ...loadConfig({}),
+  ...loadConfig({ DEFAULT_ENGINE: 'raster' }),
   AUTH_SECRET: SECRET,
   AUTH_DEV_LOGIN: true,
   USER_GRACE_MS: 200,

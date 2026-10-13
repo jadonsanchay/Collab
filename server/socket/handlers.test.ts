@@ -121,7 +121,7 @@ describe('socket handlers', () => {
       },
       // A dropped socket now holds its place for a grace window, so these
       // tests use a short one rather than waiting out the production minute.
-      config: { ...loadConfig({}), USER_GRACE_MS: 30, SWEEP_INTERVAL_MS: 500 },
+      config: { ...loadConfig({ DEFAULT_ENGINE: 'raster' }), USER_GRACE_MS: 30, SWEEP_INTERVAL_MS: 500 },
     });
 
     httpServer = server.server;

@@ -39,7 +39,6 @@ const inkAround = (page: Page, vx: number, vy: number) =>
 const createVectorRoom = async (page: Page, name: string) => {
   await page.goto('/');
   await page.getByLabel('Enter your name').fill(name);
-  await page.getByLabel(/Objects board/).check();
   await page.getByRole('button', { name: 'Create' }).click();
 
   await expect(page).toHaveURL(/\/[A-Za-z0-9_-]{8}$/);
@@ -278,7 +277,8 @@ test('a drawing board converts to an objects board for everyone in it', async ({
   const bob = await bobContext.newPage();
 
   try {
-    await alice.goto('/');
+    // The legacy drawing engine, reachable only through this query parameter.
+    await alice.goto('/?engine=raster');
     await alice.getByLabel('Enter your name').fill('Alice');
     await alice.getByRole('button', { name: 'Create' }).click();
     await expect(alice).toHaveURL(/\/[A-Za-z0-9_-]{8}$/);

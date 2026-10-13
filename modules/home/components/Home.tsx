@@ -3,7 +3,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
-import { useDefaultEngine, useFeatureFlag } from '@/common/hooks/useFeatureFlag';
+import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/store/room.store';
 import {
@@ -22,15 +22,7 @@ const Home = () => {
 
   const [roomId, setRoomId] = useState('');
   const [username, setUsername] = useState('');
-  const [vectorEngine, setVectorEngine] = useState(false);
   const persistent = useFeatureFlag('persistent');
-  const vectorAvailable = useFeatureFlag('vector');
-  const defaultEngine = useDefaultEngine();
-
-  // The server's default is the box's starting state; the person can still flip it.
-  useEffect(() => {
-    setVectorEngine(defaultEngine === 'vector');
-  }, [defaultEngine]);
 
   const router = useRouter();
 
@@ -79,13 +71,11 @@ const Home = () => {
   const handleCreateRoom = () => {
     if (!parsedUsername.success) return;
 
-    // The choice is explicit whenever the server offers one. Never a trailing
-    // `undefined`: it would cross the wire as `null`, which is not "no options".
-    if (vectorAvailable) {
-      socket.emit('create_room', parsedUsername.data, { engine: vectorEngine ? 'vector' : 'raster' });
-    } else {
-      socket.emit('create_room', parsedUsername.data);
-    }
+    // Every new board is an objects board. `/?engine=raster` still makes a
+    // legacy drawing board, for checking old boards and the conversion path.
+    const engine = router.query.engine === 'raster' ? 'raster' : 'vector';
+
+    socket.emit('create_room', parsedUsername.data, { engine });
   };
 
   const handleJoinRoom = (e: FormEvent<HTMLFormElement>) => {
@@ -160,17 +150,6 @@ const Home = () => {
       <div className="flex flex-col items-center gap-2">
         <h5 className="self-start font-bold leading-tight">Create new room</h5>
 
-        {vectorAvailable && (
-          <label htmlFor="engine-vector" className="flex items-center gap-2 text-sm">
-            <input
-              id="engine-vector"
-              type="checkbox"
-              checked={vectorEngine}
-              onChange={(event) => setVectorEngine(event.target.checked)}
-            />
-            Objects board (beta): select, move, resize, stickies, connectors
-          </label>
-        )}
 
         <button
           type="button"

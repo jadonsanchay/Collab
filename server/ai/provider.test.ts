@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../config';
 import { pickProviderAgent } from './index';
 
-const base = loadConfig({});
+const base = loadConfig({ DEFAULT_ENGINE: 'raster' });
 
 describe('pickProviderAgent', () => {
   it('uses Anthropic when only that key is present', () => {

@@ -41,7 +41,7 @@ const drawStroke = async (page: Page, x: number, y: number) => {
 test('scrub back, read-only while in the past, back to live, filter, export', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?engine=raster');
   await page.getByLabel('Enter your name').fill('Alice');
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.locator('canvas.z-10')).toHaveCount(1);

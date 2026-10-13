@@ -35,7 +35,7 @@ test('text typed in one window renders in both', async ({ browser }) => {
   const bob = await bobContext.newPage();
 
   try {
-    await alice.goto('/');
+    await alice.goto('/?engine=raster');
     await alice.getByLabel('Enter your name').fill('Alice');
     await alice.getByRole('button', { name: 'Create' }).click();
     await expect(alice.locator('canvas.z-10')).toHaveCount(1);
@@ -87,7 +87,7 @@ test('text typed in one window renders in both', async ({ browser }) => {
 test('escape cancels a text box without drawing anything', async ({
   page,
 }) => {
-  await page.goto('/');
+  await page.goto('/?engine=raster');
   await page.getByLabel('Enter your name').fill('Alice');
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.locator('canvas.z-10')).toHaveCount(1);

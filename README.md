@@ -97,7 +97,7 @@ Node 22 is expected (see `.nvmrc`).
 | `ANTHROPIC_API_KEY` | —        | Enables the Anthropic agent (`AI_MODEL`, default `claude-opus-5-5`)                                    |
 | `OPENAI_API_KEY`    | —        | Enables the OpenAI agent (`OPENAI_MODEL`, default `gpt-5.5`)                                           |
 | `REWIND_ENABLED`    | `true`   | Shows the Rewind panel                                                                                 |
-| `DEFAULT_ENGINE`    | `raster` | `raster` or `vector`: the engine a board gets when its creator does not choose one                     |
+| `DEFAULT_ENGINE`    | `vector` | Engine for new boards. `raster` is the legacy drawing engine, kept for boards made before the switch |
 | `STORAGE`           | derived  | `memory`, `pglite` or `postgres`. Unset: `postgres` if `DATABASE_URL` is set, else `pglite` if `PGLITE_DIR` is set, else memory |
 | `DATABASE_URL`      | —        | Hosted Postgres                                                                                        |
 | `PGLITE_DIR`        | `.data/pglite` | Embedded Postgres directory for `STORAGE=pglite`                                                 |
