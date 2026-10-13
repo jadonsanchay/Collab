@@ -43,7 +43,8 @@ test('sign up, land on the dashboard signed in, sign out, sign back in', async (
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByText('Wrong email, username or password.')).toBeVisible();
 
-  // The right one, by username this time.
+  // The right one; the username survived the redirect.
+  await expect(page.locator('#identifier')).toHaveValue(username);
   await page.locator('#password').fill('a-long-enough-password');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/boards$/);

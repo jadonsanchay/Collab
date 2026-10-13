@@ -11,6 +11,9 @@ const ERRORS: Record<string, string> = {
   Default: 'Sign-in failed. Try again.',
 };
 
+/** Where the last attempted email or username is kept across the error redirect. */
+const IDENTIFIER_KEY = 'collab:login-identifier';
+
 const LoginForm = () => {
   const router = useRouter();
   const [identifier, setIdentifier] = useState('');
@@ -19,6 +22,8 @@ const LoginForm = () => {
 
   useEffect(() => {
     fetchCsrfToken().then(setCsrfToken).catch(() => setCsrfToken(null));
+    // A failed attempt comes back through a redirect; keep what was typed.
+    setIdentifier(window.sessionStorage.getItem(IDENTIFIER_KEY) ?? '');
   }, []);
 
   const error = typeof router.query.error === 'string' ? (ERRORS[router.query.error] ?? ERRORS.Default) : null;
@@ -28,6 +33,7 @@ const LoginForm = () => {
     event.preventDefault();
     if (!csrfToken) return;
 
+    window.sessionStorage.setItem(IDENTIFIER_KEY, identifier);
     submitPasswordSignIn(csrfToken, identifier, password, callbackUrl);
   };
 
