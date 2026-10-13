@@ -1,8 +1,10 @@
 import { FormEvent, useEffect, useState } from 'react';
 
+import { LayoutGrid } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
+import AccountButton from '@/common/components/AccountButton';
 import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/store/room.store';
@@ -88,16 +90,23 @@ const Home = () => {
 
   return (
     <div className="flex flex-col items-center py-24">
+      {/* Account and dashboard live in the corner, where every app keeps them. */}
+      <header className="fixed right-4 top-4 flex items-center gap-2">
+        {persistent && (
+          <Link
+            href="/boards"
+            className="flex items-center gap-1 rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-semibold"
+          >
+            <LayoutGrid className="size-4" /> My boards
+          </Link>
+        )}
+        <AccountButton />
+      </header>
+
       <h1 className="text-5xl font-extrabold leading-tight sm:text-extra">
         Collab
       </h1>
       <h3 className="text-xl sm:text-2xl">Real-time whiteboard</h3>
-
-      {persistent && (
-        <Link href="/boards" className="mt-4 text-sm font-semibold underline">
-          My boards →
-        </Link>
-      )}
 
       <label htmlFor="username" className="mt-10 flex flex-col gap-2">
         <span className="self-start font-bold leading-tight">

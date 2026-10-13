@@ -1,8 +1,9 @@
 import { type FormEvent, useEffect, useState } from 'react';
 
-import { Eye, History, LayoutGrid, LogIn, Share2 } from 'lucide-react';
+import { Eye, History, LayoutGrid, Share2 } from 'lucide-react';
 import Link from 'next/link';
 
+import AccountButton from '@/common/components/AccountButton';
 import HotkeyTooltip from '@/common/components/HotkeyTooltip';
 import { canDraw, canManage } from '@/common/constants/roles';
 import { useFeatureFlag } from '@/common/hooks/useFeatureFlag';
@@ -10,7 +11,6 @@ import { socket } from '@/common/lib/socket';
 import { MAX_TITLE_LENGTH, renameRoomSchema } from '@/common/schemas/events';
 import { useHistoryStore } from '@/common/store/history.store';
 import { useMyRole, useRoomTitle } from '@/common/store/room.store';
-import { useIdentity } from '@/common/store/session.store';
 
 import CallEntry from '../modules/call';
 import { useToolbarActionsContext } from '../modules/toolbar/context/ToolbarActions.context';
@@ -109,39 +109,6 @@ const BoardTitle = () => {
 };
 
 /** Sign in, or who is signed in with a way out. Only where sign-in exists. */
-const AccountButton = () => {
-  const auth = useFeatureFlag('auth');
-  const identity = useIdentity();
-
-  if (!auth) return null;
-
-  if (!identity || identity.isGuest) {
-    return (
-      // eslint-disable-next-line @next/next/no-html-link-for-pages -- an Express route, not a page
-      <a
-        href="/api/auth/signin"
-        className="flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-semibold text-white"
-      >
-        <LogIn className="size-4" /> Sign in
-      </a>
-    );
-  }
-
-  return (
-    <div className="flex items-center gap-2 rounded-lg bg-zinc-900 px-2 py-1 text-sm text-white">
-      {identity.image ? (
-        // eslint-disable-next-line @next/next/no-img-element -- an avatar URL from the identity provider
-        <img src={identity.image} alt="" className="size-6 rounded-full" />
-      ) : null}
-      <span className="max-w-32 truncate font-semibold">{identity.name ?? identity.email}</span>
-      {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- an Express route, not a page */}
-      <a href="/api/auth/signout" className="text-xs underline opacity-80">
-        Sign out
-      </a>
-    </div>
-  );
-};
-
 const TopBar = () => {
   const { handleShare } = useToolbarActionsContext();
   const persistent = useFeatureFlag('persistent');

@@ -26,7 +26,7 @@ const inkAnywhere = (page: import('@playwright/test').Page) =>
 test('create a board from a template, rename it, delete it', async ({ page }) => {
   // Visiting the app once gives this browser its guest identity.
   await page.goto('/');
-  await expect(page.getByRole('link', { name: 'My boards →' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'My boards' })).toBeVisible();
 
   await page.goto('/boards');
   await expect(page.getByRole('heading', { name: 'My boards' })).toBeVisible();
