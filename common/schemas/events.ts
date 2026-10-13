@@ -34,6 +34,8 @@ export const createRoomOptionsSchema = z
   .object({
     title: z.string().max(80).optional(),
     engine: boardEngineSchema.optional(),
+    /** A starting layout from `server/boards/templates.ts`; blank when omitted. */
+    templateId: z.string().max(40).optional(),
   })
   .nullish();
 

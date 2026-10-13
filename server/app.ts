@@ -24,6 +24,7 @@ import { resolveSession } from './auth/session';
 import { BoardStore } from './boards/BoardStore';
 import type { Persistence } from './boards/persistence';
 import { registerBoardRoutes } from './boards/routes';
+import { templateSummaries } from './boards/templates';
 import { loadConfig, type Config } from './config';
 import type { Database } from './db/client';
 import { users } from './db/schema';
@@ -209,6 +210,12 @@ export const createAppServer = ({
     roles,
     mergeGuest: database ? (guestId, accountId) => mergeGuest(database.db, guestId, accountId) : undefined,
     callParticipants: roster ? (roomId) => roster.participantsOf(roomId) : undefined,
+    vectorDocs,
+  });
+
+  // Templates exist in every storage mode; the landing page picker reads this.
+  app.get('/api/templates', (_req, res) => {
+    res.json(templateSummaries());
   });
 
   app.get('/hello', async (_, res) => {

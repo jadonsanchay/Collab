@@ -33,6 +33,7 @@ export type BoardEngine = 'raster' | 'vector';
 export interface CreateRoomOptions {
   title?: string;
   engine?: BoardEngine;
+  templateId?: string;
 }
 
 /** Why a join was refused, when the reason is worth telling the user. */

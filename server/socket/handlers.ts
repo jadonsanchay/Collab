@@ -28,9 +28,12 @@ import type {
 import type { AiService } from '../ai';
 import type { RoleResolver } from '../auth/roles';
 import type { BoardStore } from '../boards/BoardStore';
+import { seedTemplate } from '../boards/seedTemplate';
+import { findTemplate } from '../boards/templates';
 import { logger } from '../logger';
 import { toPublicUsers } from '../rooms/types';
 import type { ObjectStorage } from '../storage';
+import type { VectorDocStore } from '../vector/docStore';
 import type { SocketData } from './identity';
 import { withinLimit } from './rateLimit';
 import { safeHandler } from './safeHandler';
@@ -54,6 +57,8 @@ export type HandlerDeps = {
   roles?: RoleResolver;
   /** Who is in the board's call, when calls exist. Sent with the snapshot. */
   callParticipants?: (roomId: string) => string[];
+  /** Where a template's objects go when a new board is an objects board. */
+  vectorDocs?: VectorDocStore;
 };
 
 const DEFAULT_DEPS: HandlerDeps = {
@@ -233,14 +238,22 @@ export const registerSocketHandlers = (
           return;
         }
 
+        const template = findTemplate(parsedOptions.data?.templateId);
+
+        if (!template) {
+          logger.debug({ userId, templateId: parsedOptions.data?.templateId }, 'dropped create_room: unknown template');
+          return;
+        }
+
+        const engine = parsedOptions.data?.engine ?? deps.features.defaultEngine ?? 'raster';
+        const title = parsedOptions.data?.title ?? (template.id === 'blank' ? undefined : template.name);
+
         // parsed.data is the sanitized name: trimmed, control characters gone.
-        const { roomId } = await rooms.create(
-          userId,
-          parsed.data,
-          socket.id,
-          parsedOptions.data?.title,
-          parsedOptions.data?.engine ?? deps.features.defaultEngine ?? 'raster',
-        );
+        const { roomId } = await rooms.create(userId, parsed.data, socket.id, title, engine);
+
+        if (deps.vectorDocs) {
+          await seedTemplate({ boards: rooms, vectorDocs: deps.vectorDocs, roomId, userId, template, engine });
+        }
 
         socket.join(roomId);
 

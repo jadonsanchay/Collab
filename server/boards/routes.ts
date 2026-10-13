@@ -17,7 +17,6 @@ import { createObject, readAll } from '@/common/vector/doc';
 import { topZ } from '@/common/vector/order';
 import type { BoardObject } from '@/common/vector/types';
 
-import { toObjects } from '../ai/toObjects';
 import type { RoleResolver } from '../auth/roles';
 import { type AuthDeps, identityFromRequest } from '../auth/routes';
 import type { Identity } from '../auth/session';
@@ -38,7 +37,8 @@ import {
   redeemShareLink,
   revokeShareLink,
 } from './shareLinks';
-import { findTemplate, templateMoves, templateSummaries } from './templates';
+import { seedTemplate } from './seedTemplate';
+import { findTemplate } from './templates';
 
 const grantableRole = z.enum(GRANTABLE_ROLES);
 
@@ -64,12 +64,6 @@ const createBoardSchema = z.object({
 });
 
 const renameSchema = z.object({ title: renameRoomSchema });
-
-/**
- * Where a template lands on a new objects board: inside what the default
- * camera shows, so the board does not open onto blank space.
- */
-const VECTOR_TEMPLATE_TARGET = { x: 0, y: 0, width: 1400, height: 900 };
 
 type IOServer = Server<
   ClientToServerEvents,
@@ -175,10 +169,6 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
     return { identity, boardId: boardId.data, role };
   };
 
-  app.get('/api/templates', (_req, res) => {
-    res.json(templateSummaries());
-  });
-
   /** Every board the caller owns or is a member of, most recently active first. */
   app.get('/api/boards', async (req, res) => {
     const identity = await identityFromRequest(req, deps.auth);
@@ -268,22 +258,14 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
       engine,
     );
 
-    // The same drawing program seeds either engine: moves on a raster board,
-    // objects in the document of a vector one.
-    if (engine === 'raster') {
-      templateMoves(template).forEach((payload) => deps.boards.addMove(roomId, identity.userId, payload));
-    } else if (template.program.primitives.length) {
-      const entry = await deps.vectorDocs.open(roomId);
-      const planned = toObjects(template.program, VECTOR_TEMPLATE_TARGET, {
-        createdBy: identity.userId,
-        firstZ: 'a0',
-      });
-
-      entry.doc.transact(() => {
-        planned.forEach(({ object }) => createObject(entry.doc, object));
-      }, { userId: identity.userId });
-      deps.vectorDocs.release(roomId);
-    }
+    await seedTemplate({
+      boards: deps.boards,
+      vectorDocs: deps.vectorDocs,
+      roomId,
+      userId: identity.userId,
+      template,
+      engine,
+    });
 
     res.status(201).json({ id: roomId, title: deps.boards.get(roomId)?.title });
   });
