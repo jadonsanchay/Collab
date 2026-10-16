@@ -751,9 +751,21 @@ export class VectorRenderer {
     if (!box) return null;
 
     const radius = HANDLE_SIZE / this.camera.zoom;
-    const hit = handlePositionsOf(box).find(
-      ({ x, y }) => Math.abs(point.x - x) <= radius && Math.abs(point.y - y) <= radius,
-    );
+    // A thin selection (a straight pen stroke, a line) has edge handles that
+    // would cover the whole object, so only its corners resize; the middle
+    // of it must still be draggable.
+    const thin = box.h * this.camera.zoom < HANDLE_SIZE * 3;
+    const narrow = box.w * this.camera.zoom < HANDLE_SIZE * 3;
+    // Nearest handle wins where two are within reach, so a corner beats the
+    // edge handle beside it.
+    const hit = handlePositionsOf(box)
+      .filter(
+        ({ x, y, handle }) =>
+          !((thin && (handle === 'n' || handle === 's')) || (narrow && (handle === 'e' || handle === 'w'))) &&
+          Math.abs(point.x - x) <= radius &&
+          Math.abs(point.y - y) <= radius,
+      )
+      .sort((a, b) => Math.hypot(point.x - a.x, point.y - a.y) - Math.hypot(point.x - b.x, point.y - b.y))[0];
 
     if (hit) return hit.handle;
 

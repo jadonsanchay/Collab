@@ -88,7 +88,7 @@ const VectorToolbar = ({ session }: { session: VectorSession | null }) => {
       aria-label="Vector tools"
       className="fixed left-1/2 top-16 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-zinc-900 p-2 text-white shadow-lg"
     >
-      <div className="absolute -left-24 top-0 flex items-center gap-1">
+      <div className="absolute -left-28 top-0 flex items-center gap-1 rounded-xl bg-zinc-900 p-2 shadow-lg">
         <HotkeyTooltip label="Undo" hotkey="⌘Z">
           <button
             type="button"
