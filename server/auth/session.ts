@@ -6,6 +6,8 @@ export type Identity = {
   userId: string;
   isGuest: boolean;
   name: string | null;
+  /** The account handle; null for guests and accounts made before handles existed. */
+  username: string | null;
   email: string | null;
   image: string | null;
 };
@@ -38,6 +40,7 @@ export const resolveSession = async (
       userId: token.sub,
       isGuest: false,
       name: typeof token.name === 'string' ? token.name : null,
+      username: typeof token.username === 'string' ? token.username : null,
       email: typeof token.email === 'string' ? token.email : null,
       image: typeof token.picture === 'string' ? token.picture : null,
     };

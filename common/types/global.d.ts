@@ -77,6 +77,8 @@ export interface Identity {
   userId: string;
   isGuest: boolean;
   name: string | null;
+  /** The account's handle, generated at sign-up and never changed. Null for guests. */
+  username: string | null;
   email: string | null;
   image: string | null;
 }
@@ -93,7 +95,10 @@ export interface AiStatusUpdate {
 }
 
 export interface User {
+  /** The display name: the account name, or what a guest typed at the gate. */
   name: string;
+  /** The account handle, shown only to tell two people with the same name apart. */
+  username?: string;
   color: string;
   /** Set while the user is inside their disconnect grace window. */
   offline?: boolean;
@@ -151,7 +156,7 @@ export interface ServerToClientEvents {
   user_draw: (move: Move, userId: string) => void;
   user_undo(userId: string): void;
   /** Colour is assigned by the server so every client agrees on it. */
-  new_user: (userId: string, username: string, color: string) => void;
+  new_user: (userId: string, name: string, color: string, handle?: string | null) => void;
   /**
    * What a reconnecting client missed: moves after the sequence number it
    * reported, grouped by author, plus the current user list. Sending only the

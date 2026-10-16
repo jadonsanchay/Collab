@@ -136,6 +136,7 @@ export const registerSocketHandlers = (
     const identity: Identity = socket.data.account ?? {
       userId,
       isGuest: true,
+      username: null,
       name: null,
       email: null,
       image: null,
@@ -248,8 +249,11 @@ export const registerSocketHandlers = (
         const engine = parsedOptions.data?.engine ?? deps.features.defaultEngine ?? 'raster';
         const title = parsedOptions.data?.title ?? (template.id === 'blank' ? undefined : template.name);
 
-        // parsed.data is the sanitized name: trimmed, control characters gone.
-        const { roomId } = await rooms.create(userId, parsed.data, socket.id, title, engine);
+        // An account is shown by its account name whatever the client sent;
+        // parsed.data (the typed name, sanitized) is for guests.
+        const {account} = socket.data;
+        const name = account?.name ?? parsed.data;
+        const { roomId } = await rooms.create(userId, name, socket.id, title, engine, account?.username ?? null);
 
         if (deps.vectorDocs) {
           await seedTemplate({ boards: rooms, vectorDocs: deps.vectorDocs, roomId, userId, template, engine });
@@ -313,12 +317,15 @@ export const registerSocketHandlers = (
           return;
         }
 
+        const {account} = socket.data;
+
         if (
           rooms.join(
             parsed.data.roomId,
             userId,
-            parsed.data.username,
+            account?.name ?? parsed.data.username,
             socket.id,
+            account?.username ?? null,
           )
         ) {
           socket.join(parsed.data.roomId);
@@ -353,7 +360,7 @@ export const registerSocketHandlers = (
         const me = room.users.get(userId);
         if (!me) return;
 
-        socket.broadcast.to(roomId).emit('new_user', userId, me.name, me.color);
+        socket.broadcast.to(roomId).emit('new_user', userId, me.name, me.color, me.username ?? null);
       }),
     );
 

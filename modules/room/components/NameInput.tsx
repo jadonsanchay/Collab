@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 
 import { socket } from '@/common/lib/socket';
 import { useSetRoomId } from '@/common/store/room.store';
+import { useIdentity } from '@/common/store/session.store';
 import { MAX_USERNAME_LENGTH, usernameSchema } from '@/common/schemas/user';
 import NotFoundModal from '@/modules/home/modals/NotFound';
 import { useModal } from '@/modules/modal';
@@ -13,9 +14,18 @@ const NameInput = () => {
   const { openModal } = useModal();
 
   const [name, setName] = useState('');
+  const identity = useIdentity();
+  const account = identity && !identity.isGuest ? identity : null;
 
   const router = useRouter();
   const roomId = (router.query.roomId || '').toString();
+
+  // Signed in: the account name is the name, so there is nothing to ask.
+  useEffect(() => {
+    if (!roomId || !account) return;
+
+    socket.emit('join_room', roomId, account.name ?? 'Anonymous');
+  }, [roomId, account]);
 
   useEffect(() => {
     if (!roomId) return undefined;
@@ -63,6 +73,17 @@ const NameInput = () => {
 
     socket.emit('join_room', roomId, parsedName.data);
   };
+
+  if (account) {
+    return (
+      <div className="my-24 flex flex-col items-center gap-4">
+        <h1 className="text-5xl font-extrabold leading-tight sm:text-extra">Collab</h1>
+        <p role="status" className="text-zinc-600">
+          Joining as <span className="font-semibold">{account.name ?? account.email}</span>…
+        </p>
+      </div>
+    );
+  }
 
   return (
     <form

@@ -77,6 +77,7 @@ export type ServerRoom = {
  */
 export const toPublicUser = (user: RoomUser): User => ({
   name: user.name,
+  ...(user.username ? { username: user.username } : {}),
   color: user.color,
   offline: user.socketId === null && !user.synthetic,
 });

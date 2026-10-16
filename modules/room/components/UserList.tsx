@@ -2,6 +2,7 @@ import { Megaphone, MicOff, MonitorUp, Phone, Sparkles } from 'lucide-react';
 
 import HotkeyTooltip from '@/common/components/HotkeyTooltip';
 import { isAiUser } from '@/common/constants/ai';
+import { displayName } from '@/common/lib/displayName';
 import { socket } from '@/common/lib/socket';
 import { activityLabel, useSketchActivity } from '@/common/store/ai.store';
 import { type CallState, usePresenceStore } from '@/common/store/presence.store';
@@ -40,10 +41,11 @@ const UserList = () => {
           const call = calls.get(userId);
           const speaking = Boolean(call?.speaking);
 
-          let title = user?.name;
-          if (user?.offline) title = `${user.name} (reconnecting)`;
-          else if (busy && activity) title = `${user?.name} (${activityLabel(activity)})`;
-          else if (call?.inCall) title = `${user?.name} (in call${call.micMuted ? ', muted' : ''})`;
+          const shown = displayName(userId, users);
+          let title = shown;
+          if (user?.offline) title = `${shown} (reconnecting)`;
+          else if (busy && activity) title = `${shown} (${activityLabel(activity)})`;
+          else if (call?.inCall) title = `${shown} (in call${call.micMuted ? ', muted' : ''})`;
 
           return (
             <button

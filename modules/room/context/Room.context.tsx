@@ -114,6 +114,7 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
 
         newUsers.set(id, {
           name: user.name,
+          ...(user.username ? { username: user.username } : {}),
           color: user.color,
           offline: user.offline,
         });
@@ -159,6 +160,7 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
 
         newUsers.set(id, {
           name: user.name,
+          ...(user.username ? { username: user.username } : {}),
           color: user.color,
           offline: user.offline,
         });
@@ -191,10 +193,10 @@ const RoomContextProvider = ({ children }: { children: ReactNode }) => {
       handleSetUserPresence(userId, false);
     });
 
-    socket.on('new_user', (userId, username, color) => {
-      toast(`${username} has joined the room.`);
+    socket.on('new_user', (userId, name, color, handle) => {
+      toast(`${name} has joined the room.`);
 
-      handleAddUser(userId, username, color);
+      handleAddUser(userId, name, color, handle);
     });
 
     socket.on('user_disconnected', (userId) => {

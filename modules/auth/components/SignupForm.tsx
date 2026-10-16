@@ -1,5 +1,6 @@
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useState } from 'react';
 
+import { Dices } from 'lucide-react';
 import Link from 'next/link';
 
 import { MIN_PASSWORD_LENGTH, registerSchema } from '@/common/schemas/auth';
@@ -11,7 +12,6 @@ type Field = 'name' | 'username' | 'email' | 'password';
 
 const FIELDS: { field: Field; label: string; type: string; autoComplete: string; hint?: string }[] = [
   { field: 'name', label: 'Name', type: 'text', autoComplete: 'name', hint: 'Shown on boards' },
-  { field: 'username', label: 'Username', type: 'text', autoComplete: 'username', hint: 'Letters, digits, underscores' },
   { field: 'email', label: 'Email', type: 'email', autoComplete: 'email' },
   { field: 'password', label: 'Password', type: 'password', autoComplete: 'new-password', hint: `At least ${MIN_PASSWORD_LENGTH} characters` },
 ];
@@ -20,8 +20,30 @@ const SignupForm = () => {
   const [values, setValues] = useState<Record<Field, string>>({ name: '', username: '', email: '', password: '' });
   const [error, setError] = useState<{ field?: string; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rolling, setRolling] = useState(false);
 
   const parsed = registerSchema.safeParse(values);
+
+  // The handle is dealt, not typed: it is permanent, so it should be
+  // something nobody has to spell, and it stays unique by construction.
+  const rollUsername = useCallback(async () => {
+    setRolling(true);
+
+    try {
+      const response = await fetch('/api/account/username');
+      const body = (await response.json()) as { username?: string };
+
+      if (body.username) setValues((prev) => ({ ...prev, username: body.username as string }));
+    } catch {
+      setError({ message: 'Could not fetch a username. Try again.' });
+    } finally {
+      setRolling(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    rollUsername();
+  }, [rollUsername]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -55,6 +77,32 @@ const SignupForm = () => {
   return (
     <AuthShell title="Create an account">
       <form className="flex flex-col gap-3" onSubmit={submit}>
+        <div className="flex flex-col gap-1 text-sm font-semibold">
+          <span id="signup-username-label">Username</span>
+          <div className="flex items-center gap-2">
+            <output
+              id="signup-username"
+              aria-labelledby="signup-username-label"
+              className="input font-mono w-full text-sm"
+              data-testid="generated-username"
+            >
+              {values.username || '…'}
+            </output>
+            <button
+              type="button"
+              className="btn-icon shrink-0 bg-zinc-100"
+              aria-label="Generate another username"
+              disabled={rolling}
+              onClick={rollUsername}
+            >
+              <Dices className="size-5" />
+            </button>
+          </div>
+          <span className="text-xs font-normal text-zinc-500">
+            Yours for good once the account exists. Roll until you like one.
+          </span>
+        </div>
+
         {FIELDS.map(({ field, label, type, autoComplete, hint }) => (
           <label key={field} htmlFor={`signup-${field}`} className="flex flex-col gap-1 text-sm font-semibold">
             {label}

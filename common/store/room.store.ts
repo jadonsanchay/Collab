@@ -80,7 +80,7 @@ export const useRoomTitle = () => useRoomStore((state) => state.room.title || 'U
 export const useSetUsers = () => {
   const setRoom = useSetRoom();
 
-  const handleAddUser = (userId: string, name: string, color: string) => {
+  const handleAddUser = (userId: string, name: string, color: string, username?: string | null) => {
     setRoom((prev) => {
       const newUsers = new Map(prev.users);
       const newUsersMoves = new Map(prev.usersMoves);
@@ -88,6 +88,7 @@ export const useSetUsers = () => {
       newUsers.set(userId, {
         name,
         color,
+        ...(username ? { username } : {}),
       });
       newUsersMoves.set(userId, []);
 

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDown, MessageCircle } from 'lucide-react';
 
+import { displayName } from '@/common/lib/displayName';
 import { socket } from '@/common/lib/socket';
 import { useChatStore } from '@/common/store/chat.store';
 import { useRoom } from '@/common/store/room.store';
@@ -27,7 +28,7 @@ const Chat = () => {
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
         userId,
         body: msg,
-        name: user?.name || 'Anonymous',
+        name: displayName(userId, room.users),
         createdAt: Date.now(),
       });
 

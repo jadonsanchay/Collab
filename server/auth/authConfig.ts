@@ -116,12 +116,20 @@ export const buildAuthConfig = (config: Config, db: Db): ExpressAuthConfig | nul
     providers,
     callbacks: {
       jwt: async ({ token, user }) => {
-        if (user?.id) return { ...token, sub: user.id };
+        // On sign-in the handle rides in the token, so neither the socket
+        // handshake nor the HTTP routes need a database round trip for it.
+        if (user?.id) {
+          const [row] = await db.select({ username: users.username }).from(users).where(eq(users.id, user.id));
+
+          return { ...token, sub: user.id, username: row?.username ?? null };
+        }
 
         return token;
       },
       session: async ({ session, token }) => {
-        if (token.sub) return { ...session, user: { ...session.user, id: token.sub } };
+        if (token.sub) {
+          return { ...session, user: { ...session.user, id: token.sub, username: token.username ?? null } };
+        }
 
         return session;
       },

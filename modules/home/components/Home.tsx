@@ -70,7 +70,9 @@ const Home = () => {
   // The server validates against these same schemas and drops what fails, so
   // validating here is what makes a bad name or id a disabled button instead
   // of a button that appears to do nothing.
-  const parsedUsername = usernameSchema.safeParse(username);
+  const account = identity && !identity.isGuest ? identity : null;
+  // An account's name comes from the account; the server enforces it anyway.
+  const parsedUsername = usernameSchema.safeParse(account ? (account.name ?? 'Anonymous') : username);
   const parsedRoomId = roomIdSchema.safeParse(roomId);
 
   const handleCreateRoom = () => {
@@ -114,19 +116,25 @@ const Home = () => {
       </h1>
       <h3 className="text-xl sm:text-2xl">Real-time whiteboard</h3>
 
-      <label htmlFor="username" className="mt-10 flex flex-col gap-2">
-        <span className="self-start font-bold leading-tight">
-          Enter your name
-        </span>
-        <input
-          className="input"
-          id="username"
-          placeholder="Username..."
-          value={username}
-          maxLength={MAX_USERNAME_LENGTH}
-          onChange={(e) => setUsername(e.target.value)}
-        />
-      </label>
+      {account ? (
+        <p className="mt-10 text-zinc-600">
+          Signed in as <span className="font-semibold">{account.name ?? account.email}</span>
+        </p>
+      ) : (
+        <label htmlFor="username" className="mt-10 flex flex-col gap-2">
+          <span className="self-start font-bold leading-tight">
+            Enter your name
+          </span>
+          <input
+            className="input"
+            id="username"
+            placeholder="Username..."
+            value={username}
+            maxLength={MAX_USERNAME_LENGTH}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </label>
+      )}
 
       <div className="my-8 h-px w-96 bg-zinc-200" />
 

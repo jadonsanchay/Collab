@@ -190,7 +190,8 @@ describe('socket handlers', () => {
     const newUser = waitFor(alice, 'new_user');
     bob.emit('joined_room');
 
-    await expect(newUser).resolves.toEqual([bob.userId, 'Bob', expect.any(String)]);
+    // The fourth value is the account handle; a guest has none.
+    await expect(newUser).resolves.toEqual([bob.userId, 'Bob', expect.any(String), null]);
   });
 
   it('rejects a join for an unknown room and echoes the attempted id', async () => {

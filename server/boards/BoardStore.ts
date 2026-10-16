@@ -98,8 +98,9 @@ export class BoardStore {
     socketId: string,
     title?: string,
     engine: BoardEngine = 'raster',
+    handle: string | null = null,
   ): Promise<{ roomId: string; user: RoomUser }> {
-    const created = this.rooms.create(userId, username, socketId, { title, engine });
+    const created = this.rooms.create(userId, username, socketId, { title, engine, handle });
 
     if (this.persistence) {
       const room = this.rooms.get(created.roomId);
@@ -131,16 +132,23 @@ export class BoardStore {
     ownerName: string,
     title?: string,
     engine: BoardEngine = 'raster',
+    handle: string | null = null,
   ): Promise<string> {
-    const { roomId } = await this.create(ownerId, ownerName, '', title, engine);
+    const { roomId } = await this.create(ownerId, ownerName, '', title, engine, handle);
 
     this.rooms.markOffline(roomId, ownerId);
 
     return roomId;
   }
 
-  join(roomId: string, userId: string, username: string, socketId: string): RoomUser | null {
-    return this.rooms.join(roomId, userId, username, socketId);
+  join(
+    roomId: string,
+    userId: string,
+    username: string,
+    socketId: string,
+    handle: string | null = null,
+  ): RoomUser | null {
+    return this.rooms.join(roomId, userId, username, socketId, handle);
   }
 
   addSyntheticUser(roomId: string, userId: string, name: string, color: string) {

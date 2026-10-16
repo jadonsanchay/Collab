@@ -193,7 +193,7 @@ export class RoomStore {
     userId: string,
     username: string,
     socketId: string,
-    options: { title?: string; roomId?: string; engine?: BoardEngine } = {},
+    options: { title?: string; roomId?: string; engine?: BoardEngine; handle?: string | null } = {},
   ): { roomId: string; user: RoomUser } {
     let roomId = options.roomId ?? '';
 
@@ -206,6 +206,7 @@ export class RoomStore {
     const user: RoomUser = {
       userId,
       name: username,
+      ...(options.handle ? { username: options.handle } : {}),
       color: pickColor([]),
       socketId,
       disconnectedAt: null,
@@ -371,6 +372,7 @@ export class RoomStore {
     userId: string,
     username: string,
     socketId: string,
+    handle: string | null = null,
   ): RoomUser | null {
     const room = this.rooms.get(roomId);
 
@@ -387,6 +389,7 @@ export class RoomStore {
       const rejoined: RoomUser = {
         ...existing,
         name: username,
+        ...(handle ? { username: handle } : {}),
         socketId,
         disconnectedAt: null,
         finalizeTimer: null,
@@ -405,6 +408,7 @@ export class RoomStore {
     const user: RoomUser = {
       userId,
       name: username,
+      ...(handle ? { username: handle } : {}),
       color: pickColor(room.users.values()),
       socketId,
       disconnectedAt: null,

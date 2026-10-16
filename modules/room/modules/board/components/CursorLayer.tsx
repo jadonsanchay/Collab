@@ -4,6 +4,7 @@ import { MousePointer2, Volume2 } from 'lucide-react';
 
 import { isAiUser } from '@/common/constants/ai';
 import { useBoardView } from '@/common/lib/boardCoords';
+import { displayName } from '@/common/lib/displayName';
 import { getMyUserId } from '@/common/lib/identity';
 import { socket } from '@/common/lib/socket';
 import { activityLabel, useSketchActivity } from '@/common/store/ai.store';
@@ -121,7 +122,7 @@ const CursorLayer = () => {
               </p>
             )}
             <p className="ml-2 flex items-center gap-1">
-              {user?.name || 'Anonymous'}
+              {displayName(userId, users)}
               {calls.get(userId)?.speaking && <Volume2 className="size-3 text-green-500" />}
               {isAiUser(userId) && activity && (
                 <span className="ml-1 text-xs opacity-80">· {activityLabel(activity)}</span>

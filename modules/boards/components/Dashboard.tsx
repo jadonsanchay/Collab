@@ -290,6 +290,7 @@ const Dashboard = () => {
         {identity && !identity.isGuest ? (
           <div className="flex items-center gap-2 text-sm">
             <span className="font-semibold">{identity.name ?? identity.email}</span>
+            {identity.username && <span className="text-zinc-500">@{identity.username}</span>}
             {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- an Express route, not a page */}
             <a href="/api/auth/signout" className="underline">
               Sign out

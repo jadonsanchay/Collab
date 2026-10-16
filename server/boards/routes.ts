@@ -178,6 +178,9 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
       return;
     }
 
+    // Writes are buffered; a rename made a moment ago must show here.
+    await deps.boards.flush();
+
     const memberships = await deps.db
       .select({ boardId: boardMembers.boardId, role: boardMembers.role })
       .from(boardMembers)
@@ -256,6 +259,7 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
       identity.name ?? 'Anonymous',
       title,
       engine,
+      identity.username,
     );
 
     await seedTemplate({

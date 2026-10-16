@@ -4,6 +4,7 @@ import { parseCookie } from 'cookie';
 import { eq, or } from 'drizzle-orm';
 import express, { type Express, type Request } from 'express';
 
+import { generateUsername } from '@/common/lib/usernames';
 import { registerSchema } from '@/common/schemas/auth';
 import { userIdSchema } from '@/common/schemas/user';
 
@@ -37,6 +38,7 @@ export const identityFromRequest = async (req: Request, deps: AuthDeps): Promise
         userId: session.user.id,
         isGuest: false,
         name: session.user.name ?? null,
+        username: (session.user as { username?: string | null }).username ?? null,
         email: session.user.email ?? null,
         image: session.user.image ?? null,
       };
@@ -45,7 +47,7 @@ export const identityFromRequest = async (req: Request, deps: AuthDeps): Promise
 
   const guestId = verifyGuest(parseCookie(req.headers.cookie ?? '')[GUEST_COOKIE], deps.guestSecret);
 
-  return guestId ? { userId: guestId, isGuest: true, name: null, email: null, image: null } : null;
+  return guestId ? { userId: guestId, isGuest: true, name: null, username: null, email: null, image: null } : null;
 };
 
 /**
@@ -64,7 +66,7 @@ export const identityFromCookieHeader = async (
 
   const guestId = verifyGuest(parseCookie(cookieHeader ?? '')[GUEST_COOKIE], deps.guestSecret);
 
-  return guestId ? { userId: guestId, isGuest: true, name: null, email: null, image: null } : null;
+  return guestId ? { userId: guestId, isGuest: true, name: null, username: null, email: null, image: null } : null;
 };
 
 /**
@@ -80,6 +82,32 @@ export const registerAuthRoutes = (app: Express, deps: AuthDeps) => {
 
   app.get('/api/me', async (req, res) => {
     res.json(await identityFromRequest(req, deps));
+  });
+
+  /** A fresh handle nobody has yet, for the sign-up form's Generate button. */
+  app.get('/api/account/username', async (_req, res) => {
+    if (!deps.db) {
+      res.status(404).json({ error: 'sign-in is not available on this server' });
+      return;
+    }
+
+    const {db} = deps;
+    const unused = async (candidate: string) =>
+      (await db.select({ id: users.id }).from(users).where(eq(users.username, candidate))).length === 0;
+
+    // A clash is rare; a handful of tries is plenty before giving up.
+    const candidates = Array.from({ length: 8 }, () => generateUsername());
+    const username = await candidates.reduce<Promise<string | null>>(
+      async (found, candidate) => (await found) ?? ((await unused(candidate)) ? candidate : null),
+      Promise.resolve(null),
+    );
+
+    if (!username) {
+      res.status(503).json({ error: 'could not find a free username, try again' });
+      return;
+    }
+
+    res.json({ username });
   });
 
   /**
@@ -155,6 +183,6 @@ export const registerAuthRoutes = (app: Express, deps: AuthDeps) => {
       signGuest(parsed.data, deps.guestSecret),
       guestCookieOptions(deps.config.NODE_ENV === 'production'),
     );
-    res.json({ userId: parsed.data, isGuest: true, name: null, email: null, image: null });
+    res.json({ userId: parsed.data, isGuest: true, name: null, username: null, email: null, image: null });
   });
 };

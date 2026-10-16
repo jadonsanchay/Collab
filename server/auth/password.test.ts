@@ -1,5 +1,10 @@
+import { randomUUID } from 'crypto';
 import type { AddressInfo } from 'net';
+import { io as connectClient, type Socket } from 'socket.io-client';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+
+import { PROTOCOL_VERSION } from '@/common/constants/protocol';
+import type { ClientToServerEvents, Identity, ServerToClientEvents } from '@/common/types/global';
 
 import { createAppServer } from '../app';
 import { DbPersistence } from '../boards/dbPersistence';
@@ -100,6 +105,36 @@ describe('register and sign in with a password', () => {
 
     const byUsername = await signIn('ALICE_01', 'hunter2hunter2');
     expect(byUsername.cookie).toMatch(/authjs\.session-token=/);
+  });
+
+  it('shows an account by its account name and handle on a board, whatever name the client sends', async () => {
+    const { cookie } = await signIn('alice@example.com', 'hunter2hunter2');
+    const socket: Socket<ServerToClientEvents, ClientToServerEvents> = connectClient(origin, {
+      transports: ['websocket'],
+      forceNew: true,
+      reconnection: false,
+      auth: { userId: randomUUID(), protocolVersion: PROTOCOL_VERSION },
+      extraHeaders: { cookie },
+    });
+    const identity = new Promise<Identity>((resolve) => {
+      socket.once('identity', resolve);
+    });
+    await new Promise<void>((resolve, reject) => {
+      socket.once('connect', resolve);
+      socket.once('connect_error', reject);
+    });
+
+    expect(await identity).toMatchObject({ isGuest: false, name: 'Alice', username: 'alice_01' });
+
+    const roomId = await new Promise<string>((resolve) => {
+      socket.once('created', resolve);
+      socket.emit('create_room', 'Impostor');
+    });
+    const me = server.boards.get(roomId)?.users.get((await identity).userId);
+
+    expect(me).toMatchObject({ name: 'Alice', username: 'alice_01' });
+
+    socket.disconnect();
   });
 
   it('sends a wrong password back to the login page without a session', async () => {
