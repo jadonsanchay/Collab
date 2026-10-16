@@ -13,7 +13,7 @@ const HistoryBanner = () => {
   return (
     <div
       role="status"
-      className="pointer-events-auto fixed left-1/2 top-16 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full bg-amber-500 px-4 py-1.5 text-sm font-semibold text-black shadow-lg"
+      className="pointer-events-auto fixed left-1/2 top-32 z-40 flex -translate-x-1/2 items-center gap-3 rounded-full bg-amber-500 px-4 py-1.5 text-sm font-semibold text-black shadow-lg"
     >
       <span>Viewing history</span>
       <button

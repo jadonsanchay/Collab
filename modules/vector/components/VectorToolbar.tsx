@@ -40,7 +40,7 @@ import { downloadSvg } from '../lib/svg';
 
 const TOOLS: { tool: VectorTool; label: string; hotkey: string; icon: typeof Pencil }[] = [
   { tool: 'select', label: 'Select', hotkey: 'V', icon: MousePointer2 },
-  { tool: 'hand', label: 'Hand', hotkey: 'H', icon: Hand },
+  { tool: 'hand', label: 'Hand (pan the board)', hotkey: 'H', icon: Hand },
   { tool: 'pen', label: 'Pen', hotkey: 'P', icon: Pencil },
   { tool: 'eraser', label: 'Eraser', hotkey: 'E', icon: Eraser },
   { tool: 'rect', label: 'Rectangle', hotkey: 'R', icon: Square },
@@ -86,9 +86,9 @@ const VectorToolbar = ({ session }: { session: VectorSession | null }) => {
     <div
       role="toolbar"
       aria-label="Vector tools"
-      className="fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-zinc-900 p-2 text-white"
+      className="fixed left-1/2 top-16 z-40 flex -translate-x-1/2 items-center gap-1 rounded-xl bg-zinc-900 p-2 text-white shadow-lg"
     >
-      <div className="absolute -left-24 bottom-0 flex items-center gap-1">
+      <div className="absolute -left-24 top-0 flex items-center gap-1">
         <HotkeyTooltip label="Undo" hotkey="⌘Z">
           <button
             type="button"

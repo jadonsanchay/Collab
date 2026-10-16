@@ -57,29 +57,46 @@ const VectorRewindPanel = () => {
   const getEnd = useCallback(() => endRef.current, []);
   useRewindPlayback(getEnd);
 
-  // The log is fetched each time the panel opens, so it is current then.
+  // The log is fetched each time the panel opens. A change made a moment
+  // ago may still be on its way to the server, so when the log ends short
+  // of what this document already shows, it is fetched again shortly.
   useEffect(() => {
     if (!view.panelOpen || !persistent || !room.id) return undefined;
 
     let cancelled = false;
+    let retry: ReturnType<typeof setTimeout> | null = null;
     setError(null);
 
-    fetch(`/api/boards/${room.id}/doc-updates`)
-      .then(async (response) => {
+    const load = async (attempt: number) => {
+      try {
+        const response = await fetch(`/api/boards/${room.id}/doc-updates`);
         if (!response.ok) throw new Error('history unavailable');
 
         const body = (await response.json()) as {
           updates: { seq: number; userId: string | null; update: string }[];
         };
+        const entries = body.updates.map((entry) => ({ ...entry, update: decode(entry.update) }));
 
-        if (!cancelled) setLog(body.updates.map((entry) => ({ ...entry, update: decode(entry.update) })));
-      })
-      .catch(() => {
+        if (cancelled) return;
+        setLog(entries);
+
+        const replay = new Y.Doc();
+        entries.forEach((entry) => Y.applyUpdate(replay, entry.update));
+        const logged = new Set(readAll(replay).map((object) => object.id));
+        replay.destroy();
+
+        const behind = useVectorStore.getState().objects.some((object) => !logged.has(object.id));
+        if (behind && attempt < 10) retry = setTimeout(() => load(attempt + 1), 300);
+      } catch {
         if (!cancelled) setError('History could not be loaded.');
-      });
+      }
+    };
+
+    load(0);
 
     return () => {
       cancelled = true;
+      if (retry) clearTimeout(retry);
     };
   }, [view.panelOpen, persistent, room.id]);
 

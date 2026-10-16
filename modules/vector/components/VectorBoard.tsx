@@ -119,7 +119,7 @@ const VectorBoard = () => {
       />
 
       {!connected && (
-        <div className="pointer-events-none absolute left-1/2 top-16 z-40 -translate-x-1/2 rounded-full bg-zinc-800 px-3 py-1 text-xs text-white">
+        <div className="pointer-events-none absolute left-1/2 top-32 z-40 -translate-x-1/2 rounded-full bg-zinc-800 px-3 py-1 text-xs text-white">
           Connecting to the document…
         </div>
       )}

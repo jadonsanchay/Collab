@@ -445,6 +445,9 @@ export const registerBoardRoutes = (app: Express, deps: BoardRouteDeps) => {
       return;
     }
 
+    // Log writes are fire-and-forget; a change made a moment ago must be in the answer.
+    await deps.vectorDocs.settled(context.boardId);
+
     const rows = await deps.vectorPersistence.updatesUpTo(context.boardId, Number.MAX_SAFE_INTEGER);
 
     res.json({

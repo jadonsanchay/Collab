@@ -49,6 +49,9 @@ export class VectorDocStore {
 
   private evictTimers = new Map<string, NodeJS.Timeout>();
 
+  /** Update-log writes still in flight, per board, so a reader can wait for them. */
+  private pendingLogs = new Map<string, Set<Promise<void>>>();
+
   private options: DocStoreOptions;
 
   constructor(
@@ -95,6 +98,11 @@ export class VectorDocStore {
     this.evictTimers.set(boardId, timer);
   }
 
+  /** Resolves once every update logged so far for the board has been written. */
+  async settled(boardId: string) {
+    await Promise.all([...(this.pendingLogs.get(boardId) ?? [])]);
+  }
+
   /** Writes every dirty document now. */
   async flush() {
     await Promise.all([...this.entries.keys()].map((boardId) => this.save(boardId)));
@@ -139,9 +147,16 @@ export class VectorDocStore {
           ? ((origin as UpdateOrigin).userId ?? null)
           : null;
 
-      this.persistence
-        ?.appendUpdate(boardId, entry.seq, userId, Buffer.from(update))
-        .catch((error) => logger.warn({ err: error, boardId }, 'could not log a doc update'));
+      if (this.persistence) {
+        const pending = this.pendingLogs.get(boardId) ?? new Set<Promise<void>>();
+        const write: Promise<void> = this.persistence
+          .appendUpdate(boardId, entry.seq, userId, Buffer.from(update))
+          .catch((error) => logger.warn({ err: error, boardId }, 'could not log a doc update'))
+          .finally(() => pending.delete(write));
+
+        pending.add(write);
+        this.pendingLogs.set(boardId, pending);
+      }
 
       this.scheduleSave(boardId);
     });
