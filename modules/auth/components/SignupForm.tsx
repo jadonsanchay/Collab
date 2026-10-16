@@ -83,7 +83,7 @@ const SignupForm = () => {
             <output
               id="signup-username"
               aria-labelledby="signup-username-label"
-              className="input font-mono w-full text-sm"
+              className="input w-full text-sm"
               data-testid="generated-username"
             >
               {values.username || '…'}
