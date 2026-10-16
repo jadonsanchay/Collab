@@ -90,7 +90,7 @@ const SignupForm = () => {
             </output>
             <button
               type="button"
-              className="btn-icon shrink-0 bg-zinc-100"
+              className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white transition-colors hover:bg-zinc-700 disabled:opacity-40"
               aria-label="Generate another username"
               disabled={rolling}
               onClick={rollUsername}
