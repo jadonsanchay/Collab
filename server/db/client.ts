@@ -33,7 +33,17 @@ export type Database = {
 export const MIGRATIONS_FOLDER = path.resolve(process.cwd(), 'server/db/migrations');
 
 export const createPostgres = async (connectionString: string): Promise<Database> => {
-  const pool = new Pool({ connectionString, max: 10 });
+  // Hosted Postgres (Neon and friends) drops idle connections from its side;
+  // retiring ours first avoids the first query after a quiet spell failing
+  // with ECONNRESET. An errored idle client is logged, not fatal.
+  const pool = new Pool({
+    connectionString,
+    max: 10,
+    idleTimeoutMillis: 20_000,
+    connectionTimeoutMillis: 10_000,
+    keepAlive: true,
+  });
+  pool.on('error', (error) => logger.warn({ err: error }, 'postgres pool: idle client error'));
   const db = drizzlePg(pool, { schema });
 
   await migratePg(db, { migrationsFolder: MIGRATIONS_FOLDER });

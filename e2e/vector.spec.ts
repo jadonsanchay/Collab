@@ -245,7 +245,8 @@ test('Rewind on an objects board scrubs through the document history', async ({ 
     await page.keyboard.press('Meta+Shift+h');
     const panel = page.getByRole('region', { name: 'Rewind' });
     await expect(panel).toBeVisible();
-    await expect(panel.getByText('2 / 2')).toBeVisible();
+    // The log lives in the database; a hosted one can take a moment to catch up.
+    await expect(panel.getByText('2 / 2')).toBeVisible({ timeout: 20_000 });
 
     // One change back: the second stroke is gone, the first stays.
     const slider = panel.getByRole('slider');

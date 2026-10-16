@@ -114,6 +114,28 @@ export const useVectorInteractions = (
 
           const hit = topmostAt(point, objects);
 
+          // Inside the selection box but not on an object: drag the whole
+          // selection. A curvy stroke is mostly empty box, and nobody should
+          // have to land on the line itself to move it.
+          if (!hit && !event.shiftKey && !readOnly && selection.size > 0 && renderer?.insideSelection(point)) {
+            const map = objectsMap();
+            const ids = [...selection].filter((id) => map.has(id));
+            const origin = new Map(ids.map((id) => [id, map.get(id) as BoardObject]));
+            const children = new Map<string, BoardObject>();
+
+            ids.forEach((id) => {
+              const object = map.get(id);
+              if (object?.type === 'frame') {
+                childrenOf(object, objects).forEach((child) => {
+                  if (!origin.has(child.id)) children.set(child.id, child);
+                });
+              }
+            });
+
+            dragRef.current = { kind: 'move', start: point, ids, origin, children };
+            return;
+          }
+
           if (hit) {
             let ids: string[];
 

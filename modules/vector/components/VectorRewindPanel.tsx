@@ -22,6 +22,9 @@ type LogEntry = { seq: number; userId: string | null; update: Uint8Array };
 
 type Author = { userId: string; name: string; color: string };
 
+/** How long the panel keeps refetching while the server's log trails this document. */
+const CATCH_UP_MS = 20_000;
+
 const decode = (base64: string) => Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
 
 /**
@@ -67,6 +70,8 @@ const VectorRewindPanel = () => {
     let retry: ReturnType<typeof setTimeout> | null = null;
     setError(null);
 
+    const startedAt = Date.now();
+
     const load = async (attempt: number) => {
       try {
         const response = await fetch(`/api/boards/${room.id}/doc-updates`);
@@ -86,7 +91,7 @@ const VectorRewindPanel = () => {
         replay.destroy();
 
         const behind = useVectorStore.getState().objects.some((object) => !logged.has(object.id));
-        if (behind && attempt < 10) retry = setTimeout(() => load(attempt + 1), 300);
+        if (behind && Date.now() - startedAt < CATCH_UP_MS) retry = setTimeout(() => load(attempt + 1), 400);
       } catch {
         if (!cancelled) setError('History could not be loaded.');
       }
